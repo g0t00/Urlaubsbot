@@ -5,7 +5,7 @@ const Group = require('./group');
 const Database = require('./database');
 let database = new Database();
 const Sheet = require('./sheet');
-
+const AsciiTable = require('ascii-table');
 let groups = [];
 // newGroup scene
 
@@ -92,11 +92,23 @@ bot.command('summary', ctx => {
   let group = ctx.groupObj;
   let sum = group.getSum();
   let avg = sum/group.members.length;
-  ctx.reply(`Sum: ${sum} average: ${avg}`);
+  let memberSums = group.getMembersWithSums();
+  var table = new AsciiTable()
+  table.addRow('sum', sum, ' ');
+  table.addRow('average', avg, ' ');
+  memberSums.forEach(member => {
+    table.addRow(member.name, member.sum, avg - member.sum);
+  })
+  ctx.replyWithHTML('<code>' + table.toString() + '</code>');
 });
 bot.command('add', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
+    return;
+  }
+  let member = ctx.groupObj.getMemberById(ctx.message.from.id);
+  if (member === null) {
+    ctx.reply('You are not in this group. Please use /newMember first!');
     return;
   }
   console.log('add', ctx.message);
@@ -123,6 +135,9 @@ bot.command('add', ctx => {
     return;
   }
   let description = ctx.message.text.replace('/add ', '').replace(/\d+[.,]?\d*/, '').trim();
+  if (description == '') {
+    description = 'no desc';
+  }
   if (group.addEntry(memberId, description, amount)) {
     ctx.reply('Entry added To ' + group.getMemberById(memberId).name + '(' + memberId + ')');
   } else {
@@ -166,7 +181,7 @@ bot.command('export', ctx => {
     ctx.reply('Export done.');
   })();
 })
-bot.command('memberinfo', ctx => {
+bot.command('memberInfo', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
     return;
@@ -184,12 +199,30 @@ bot.command('memberinfo', ctx => {
   let avg = sum/group.members.length;
 
   let str = `${member.name} (${member.id})\n`
-  + `member sum: ${memberSum}\ngroup average: ${avg}.`;
+  + `member sum: ${memberSum}\ngroup average: ${avg}.\n`;
+  str += '<code>';
+  var table = new AsciiTable()
+
   member.entries.forEach(entry => {
-    str += `\n${entry.description}: ${entry.amount}`;
+    table
+      .addRow(entry.description, entry.amount);
   });
-  ctx.reply(str);
+  str += table.toString();
+  str += '</code>';
+  ctx.replyWithHTML(str);
 });
+bot.command('help', ctx => {
+  let str = `/initializeGroup initialize group, so bot knows it;
+/newMember adds yourself to group.
+/summary get summary.
+/setSheet ID - set Google Sheets ID to export to
+/getSheetLink get Google Sheets Link
+/export export to google Sheet
+/memberInfo get Info about you
+/add - Adds amount. Please only input one number after, because it will be used as amount.
+`
+ctx.reply(str);
+})
 bot.on('message', (ctx) => {
   // console.log(ctx.message);
 })

@@ -27,6 +27,14 @@ module.exports = class Group {
   getMembers() {
     return this.members;
   }
+  getMembersWithSums() {
+    return this.members.map(member => {
+      return {
+        name: member.name,
+        sum: member.entries.reduce((acc, add) => acc + add.amount, 0)
+      };
+    });
+  }
   getMemberById(id) {
     let membersFiltered = this.members.filter(member => member.id == id);
 

@@ -13,6 +13,8 @@ module.exports = {
     let info = await promisify(doc.getInfo)();
     if (info.worksheets.length == 1) {
       await promisify(doc.addWorksheet, {context: doc})({title: 'data'});
+    } else {
+      await promisify(info.worksheets[1].setTitle)('data');
     }
     let dataSheet = info.worksheets[1];
     let rowCount = group.getCount() + 1;
@@ -25,9 +27,13 @@ module.exports = {
       'max-col': colCount,
       'return-empty': true
     });
+    dataCells.forEach(cell => {
+      cell.value = '';
+    });
     group.members.forEach((member, i) => dataCells[i+1].value = member.name);
     console.log(dataCells.length);
     let entryCounter = 0;
+
     group.members.forEach((member, i) => {
       member.entries.forEach(entry => {
         dataCells[(entryCounter + 1) * colCount].value = entry.description;
@@ -37,12 +43,16 @@ module.exports = {
     });
     await promisify(dataSheet.bulkUpdateCells)(dataCells);
     let summarySheet = info.worksheets[0];
+    await promisify(summarySheet.setTitle)('summary');
     let summaryCells = await promisify(summarySheet.getCells)({
       'min-row': 1,
       'max-row': group.members.length + 1,
       'min-col': 1,
       'max-col': 3,
       'return-empty': true
+    });
+    summaryCells.forEach(cell => {
+      cell.value = '';
     });
     summaryCells[1].value = 'bezahlt';
     summaryCells[2].value = 'erhält';
