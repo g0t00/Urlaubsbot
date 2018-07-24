@@ -1,6 +1,12 @@
 const Telegraf = require('telegraf')
+let bot;
+if (process.env.BOT_ENV == 'MACBOOK') {
+  bot = new Telegraf('***REMOVED***');
+} else {
+  bot = new Telegraf('698559448:AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
+  // bot.telegram.setWebhook('http://anton-schulte.de:61237/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
+}
 
-const bot = new Telegraf('698559448:AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
 const Group = require('./group');
 const Database = require('./database');
 let database = new Database();
@@ -27,6 +33,10 @@ bot.on('new_chat_members', async (ctx) => {
   console.log('new_chat_members', ctx);
 });
 bot.command('initializeGroup', ctx => {
+  if (ctx.groupObj) {
+    ctx.reply('Group already initialized');
+    return;
+  }
   let group = new Group(ctx.chat.title, ctx.chat.id);
   database.newGroup(group);
   ctx.reply('Group initialized');
