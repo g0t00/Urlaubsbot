@@ -1,151 +1,143 @@
-const Telegraf = require('telegraf')
-let bot;
-if (process.env.BOT_ENV == 'MACBOOK') {
-  bot = new Telegraf('***REMOVED***');
-} else {
-  bot = new Telegraf('698559448:AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
-  // bot.telegram.setWebhook('http://anton-schulte.de:61237/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
-}
+const Telegraf = require('telegraf');
+const Markup = require('telegraf/markup');
+const LocalSession = require('telegraf-session-local');
+const uuidv1 = require('uuid/v1');
+const _ = require('lodash');
 
 const Group = require('./group');
 const Database = require('./database');
-let database = new Database();
 const Sheet = require('./sheet');
-const AsciiTable = require('ascii-table');
-let groups = [];
-// newGroup scene
+
+let bot;
+if (process.env.BOT_ENV === 'MACBOOK') {
+  bot = new Telegraf('***REMOVED***', {username: 'UrlaubBetaBot'});
+} else {
+  bot = new Telegraf('698559448:AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4', {username: 'UrlaubsrechnerBot'});
+  // bot.telegram.setWebhook('http://anton-schulte.de:61237/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
+}
+
+const database = new Database();
 
 bot.use((ctx, next) => {
   ctx.groupObj = database.getGroupById(ctx.chat.id);
   return next(ctx).then(() => {
     database.save();
   });
-})
-// bot.use(GroupMiddleware).middleware();
+});
+bot.use((new LocalSession({database: 'session.db'})));
 
-// bot.use(stage.middleware())
-bot.on('group_chat_created', async (ctx) => {
-  let group = new Group(ctx.chat.title, ctx.chat.id);
+bot.on('group_chat_created', async ctx => {
+  const group = new Group(ctx.chat.title, ctx.chat.id);
   ctx.reply('Neue Gruppe angelegt: ' + group.name);
   database.newGroup(group);
 });
-bot.on('new_chat_members', async (ctx) => {
+bot.on('new_chat_members', async ctx => {
   console.log('new_chat_members', ctx);
 });
-bot.command('initializeGroup', ctx => {
+bot.command('initializegroup', ctx => {
   if (ctx.groupObj) {
     ctx.reply('Group already initialized');
     return;
   }
-  let group = new Group(ctx.chat.title, ctx.chat.id);
+  const group = new Group(ctx.chat.title, ctx.chat.id);
   database.newGroup(group);
   ctx.reply('Group initialized');
-})
+});
 bot.command('members', ctx => {
   console.log(ctx.groupObj);
   if (ctx.groupObj) {
-    if (ctx.groupObj.members.length == 0) {
+    if (ctx.groupObj.members.length === 0) {
       ctx.reply('Group empty.');
       return;
     }
-    let str = 'Members: ' + ctx.groupObj.members.map(member => member.name).join(', ');
+    const str = 'Members: ' + ctx.groupObj.members.map(member => member.name).join(', ');
     ctx.reply(str);
   } else {
     ctx.reply('Not in group / none initialized group');
   }
 });
-bot.command('membersDetail', ctx => {
+bot.command('membersdetail', ctx => {
   if (ctx.groupObj) {
-    if (ctx.groupObj.members.length == 0) {
+    if (ctx.groupObj.members.length === 0) {
       ctx.reply('Group empty.');
       return;
     }
-    let str = 'Members: ' + ctx.groupObj.members.map(member => `${member.name} (${member.id})`).join(', ');
+    const str = 'Members: ' + ctx.groupObj.members.map(member => `${member.name} (${member.id})`).join(', ');
     ctx.reply(str);
   } else {
     ctx.reply('Not in group / none initialized group');
   }
 });
-bot.command('newMember', ctx => {
+bot.command('newmember', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
     return;
   }
   console.log(ctx.groupObj);
-  let mentions = ctx.message.entities.filter(entity => entity.type == 'text_mention');
-  console.log(ctx.message.entities, mentions);
-  if (mentions.length > 0) {
-    mentions.forEach(mention => {
-      if (ctx.groupObj.addMember(mention.user.first_name, mention.user.id)) {
-        ctx.reply(`Member ${mention.user.first_name} added (id: ${mention.user.id})`);
-      } else {
-        ctx.reply(`'${ctx.message.from.first_name}' are already in group!`);
-      }
-    })
+  if (ctx.groupObj.addMember(ctx.message.from.first_name, ctx.message.from.id)) {
+    ctx.reply(`Member ${ctx.message.from.first_name} added (id: ${ctx.message.from.id})`);
   } else {
-    if (ctx.groupObj.addMember(ctx.message.from.first_name, ctx.message.from.id)) {
-      ctx.reply(`Member ${ctx.message.from.first_name} added (id: ${ctx.message.from.id})`);
-    } else {
-      ctx.reply('You are already in group!');
-    }
+    ctx.reply('You are already in group!');
+  }
+});
+bot.command('newmembernotelegram', ({message, groupObj, reply}) => {
+  // Object.keys(ctx.message).forEach(key => {
+  //   console.log(typeof ctx.message[key], key);
+  //   if (typeof ctx.message[key] === 'object') {
+  //     console.log(ctx.message[key]);
+  //   }
+  // });
+  // console.log(message);
+  const memberName = message.text.substr(message.entities[0].length + 1);
+  if (memberName === '') {
+    return reply('No Name given!');
+  }
+  if (groupObj.addMember(memberName, memberName)) {
+    reply(`Member ${memberName} added (id: ${memberName})`);
+  } else {
+    reply('You are already in group!');
   }
 });
 bot.command('test', async ctx => {
-  let test = await ctx.telegram.getChatMember(ctx.chat.id, ctx.groupObj.members[1].id);
+  const test = await ctx.telegram.getChatMember(ctx.chat.id, ctx.groupObj.members[1].id);
   console.log(test);
-})
+});
 bot.command('summary', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
     return;
   }
-  let group = ctx.groupObj;
-  let sum = group.getSum();
-  let avg = sum/group.members.length;
-  let memberSums = group.getMembersWithSums();
-  var table = new AsciiTable()
-  table.addRow('sum', sum, ' ');
-  table.addRow('average', avg, ' ');
-  memberSums.forEach(member => {
-    table.addRow(member.name, member.sum, avg - member.sum);
-  })
-  ctx.replyWithHTML('<code>' + table.toString() + '</code>');
+  const group = ctx.groupObj;
+
+  ctx.replyWithHTML('<code>' + group.getSummaryTable() + '</code>');
 });
 bot.command('add', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
     return;
   }
-  let member = ctx.groupObj.getMemberById(ctx.message.from.id);
+  const member = ctx.groupObj.getMemberById(ctx.message.from.id);
   if (member === null) {
     ctx.reply('You are not in this group. Please use /newMember first!');
     return;
   }
-  console.log('add', ctx.message);
-  let group = ctx.groupObj;
-  let textMentions = ctx.message.entities.filter(entity => entity.type == 'text_mention');
-  let mentions = ctx.message.entities.filter(entity => entity.type == 'mention');
+  const group = ctx.groupObj;
 
-  let memberId = ctx.message.from.id;
-  // if (textMentions.length > 0) {
-  //   memberId = textMentions[0].user.id;
-  // } else if (mentions.length > 0) {
-  //
-  // } else {
-  // }
+  const memberId = ctx.message.from.id;
+  const messageText = ctx.message.text.substr(ctx.message.entities[0].length + 1);
 
-  let matches = ctx.message.text.match(/\d+[.,]?\d*/);
+  const matches = messageText.match(/\d+[.,]?\d*/);
   if (!matches) {
     ctx.reply('No Amount found!');
     return;
   }
-  let amount = parseFloat(matches[0]);
+  const amount = parseFloat(matches[0].replace(',', '.'));
   if (isNaN(amount)) {
     ctx.reply('Could not parse Amount!');
     return;
   }
-  let description = ctx.message.text.replace('/add ', '').replace(/\d+[.,]?\d*/, '').trim();
-  if (description == '') {
+  let description = messageText.replace(/\d+[.,]?\d*/, '').trim();
+  if (description === '') {
     description = 'no desc';
   }
   if (group.addEntry(memberId, description, amount)) {
@@ -154,88 +146,174 @@ bot.command('add', ctx => {
     ctx.reply('Error while adding!');
   }
 });
-bot.command('setSheet', ctx => {
+bot.command('addother', ({session, groupObj, message, reply}) => {
+  if (!groupObj) {
+    reply('Not in group / none initialized group');
+    return;
+  }
+  const messageText = message.text.substr(message.entities[0].length + 1);
+  const matches = messageText.match(/\d+[.,]?\d*/);
+  if (!matches) {
+    reply('No Amount found!');
+    return;
+  }
+  const amount = parseFloat(matches[0].replace(',', '.'));
+  if (isNaN(amount)) {
+    reply('Could not parse Amount!');
+    return;
+  }
+  let description = messageText.replace(/\d+[.,]?\d*/, '').trim();
+  if (description === '') {
+    description = 'no desc';
+  }
+  session.addOthers = session.addOthers || [];
+  const uuid = uuidv1();
+  session.addOthers.push({
+    description,
+    amount,
+    uuid
+  });
+  const {members} = groupObj;
+  const keyboard = members.map(member => {
+    return Markup.callbackButton(member.name, 'a' + uuid + '/' + member.id);
+  });
+  keyboard.push(Markup.callbackButton('cancel', 'c'));
+  return reply(`Entry preview: "${description}: ${amount}".\nPlease select member.`, Markup
+    .inlineKeyboard([keyboard])
+    // .oneTime()
+    // .resize()
+    .extra()
+  );
+});
+bot.command('setsheet', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
     return;
   }
-  let group = ctx.groupObj;
+  const group = ctx.groupObj;
   let message = ctx.message.text;
   message = message.replace('/setSheet ', '');
   group.sheetId = message;
   ctx.reply('Sheet Id Set.');
 });
-bot.command('getSheetLink', ctx => {
+bot.command('getsheetlink', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
     return;
   }
-  let group = ctx.groupObj;
-  ctx.reply('<a href="https://docs.google.com/spreadsheets/d/' + group.sheetId + '">Sheeterino</a>', {parse_mode: 'html'});
-})
+  const group = ctx.groupObj;
+  ctx.reply('<a href="https://docs.google.com/spreadsheets/d/' + group.sheetId + '">Sheeterino</a>', {parse_mode: 'html'}); // eslint-disable-line camelcase
+});
 bot.command('export', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
     return;
   }
-  let group = ctx.groupObj;
+  const group = ctx.groupObj;
   (async () => {
     try {
       await Sheet.export(group);
     } catch (e) {
       console.error(e);
-    } finally {
-
     }
-
     ctx.reply('Export done.');
   })();
-})
-bot.command('memberInfo', ctx => {
+});
+bot.command('memberinfo', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
     return;
   }
-  let group = ctx.groupObj;
-  let member = ctx.groupObj.getMemberById(ctx.message.from.id);
-  if (member === null) {
-    ctx.reply('No Info found!');
+  const group = ctx.groupObj;
+  console.log('hello');
+  ctx.replyWithHTML(group.getMemberinfo(ctx.message.from.id));
+});
+bot.command('remove', ({groupObj, reply, message}) => {
+  if (!groupObj) {
+    reply('Not in group / none initialized group');
     return;
   }
-  let memberSum = member.entries.reduce((acc, entry) => {
-    return acc + entry.amount;
-  }, 0);
-  let sum = group.getSum();
-  let avg = sum/group.members.length;
 
-  let str = `${member.name} (${member.id})\n`
-  + `member sum: ${memberSum}\ngroup average: ${avg}.\n`;
-  str += '<code>';
-  var table = new AsciiTable()
-
-  member.entries.forEach(entry => {
-    table
-      .addRow(entry.description, entry.amount);
+  const member = groupObj.getMemberById(message.from.id);
+  if (member === null) {
+    return;
+  }
+  console.log(member);
+  const keyboard = member.entries.map(entry => {
+    return Markup.callbackButton(entry.description + ': ' + entry.amount, 'r' + entry.uuid);
   });
-  str += table.toString();
-  str += '</code>';
-  ctx.replyWithHTML(str);
+  keyboard.push(Markup.callbackButton('cancel', 'c'));
+  return reply('Please select entry to delete:', Markup
+    .inlineKeyboard([keyboard])
+    // .oneTime()
+    // .resize()
+    .extra()
+  );
+});
+bot.action(/r/, async ({groupObj, callbackQuery, telegram, reply}) => {
+  if (!groupObj) {
+    reply('Not in group / none initialized group');
+    return;
+  }
+  const uuid = callbackQuery.data.replace(/^r/, '');
+  try {
+    const removedEntry = groupObj.removeEntry(callbackQuery.from.id, uuid)[0];
+    reply('Removed Entry: ' + removedEntry.description + ': ' + removedEntry.amount);
+  } catch (e) {
+    reply(JSON.stringify(e));
+  } finally {
+    telegram.deleteMessage(callbackQuery.message.chat.id, callbackQuery.message.message_id);
+  }
+});
+bot.action(/a/, async ({groupObj, callbackQuery, telegram, reply, session}) => {
+  if (!groupObj) {
+    reply('Not in group / none initialized group');
+    return;
+  }
+  const matches = callbackQuery.data.match(/^a([0-9a-f-]*)\/(.*)$/i, '');
+  if (matches === null) {
+    telegram.deleteMessage(callbackQuery.message.chat.id, callbackQuery.message.message_id);
+    console.log(callbackQuery.data);
+    return reply('Can not parse callback.');
+  }
+  const [, uuid, memberId] = matches;
+  const entry = _.find(session.addOthers, entries => {
+    return entries.uuid === uuid;
+  });
+  if (typeof entry === 'undefined') {
+    telegram.deleteMessage(callbackQuery.message.chat.id, callbackQuery.message.message_id);
+    return reply('Can not find preview entry');
+  }
+  groupObj.addEntry(memberId, entry.description, entry.amount);
+  telegram.deleteMessage(callbackQuery.message.chat.id, callbackQuery.message.message_id);
+  const member = groupObj.getMemberById(memberId);
+  console.log(memberId, 'memberId', groupObj.members, member);
+  const index = _.findIndex(session.addOthers, entries => entries.uuid === uuid);
+  session.addOthers.splice(index, 1);
+  return reply('Entry added To ' + member.name + '(' + memberId + ')');
+});
+bot.action('c', async ({callbackQuery, telegram}) => {
+  try {
+    telegram.deleteMessage(callbackQuery.message.chat.id, callbackQuery.message.message_id);
+  } catch (e) {
+    console.error(e);
+    console.log(callbackQuery);
+  }
 });
 bot.command('help', ctx => {
-  let str = `/initializeGroup initialize group, so bot knows it;
-/newMember adds yourself to group.
-/summary get summary.
-/setSheet ID - set Google Sheets ID to export to
-/getSheetLink get Google Sheets Link
-/export export to google Sheet
-/memberInfo get Info about you
+  const str = `/initializegroup - initialize group, so bot knows it;
+/newmember - adds yourself to group.
+/summary - get summary.
+/setsheetid - set Google Sheets ID to export to
+/getsheetlink - get Google Sheets Link
+/export - export to google Sheet
+/memberinfo - get Info about you
 /add - Adds amount. Please only input one number after, because it will be used as amount.
-`
-ctx.reply(str);
-})
-bot.on('message', (ctx) => {
-  // console.log(ctx.message);
-})
+`;
+  ctx.reply(str);
+});
+// A bot.on('message', ctx => {
+//   // Console.log(ctx.message);
+// });
 
-
-bot.startPolling()
+bot.startPolling();
