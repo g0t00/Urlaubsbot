@@ -1,2 +1,4 @@
 node_modules
 db.blub
+session.db
+package-lock.json
