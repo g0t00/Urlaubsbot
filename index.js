@@ -1,12 +1,50 @@
+const fs = require('fs');
 const Telegraf = require('telegraf')
+const express = require('express');
+const Web = require('./web');
 let bot;
+let webHook = false;
+let url;
+console.log('Starting directory: ' + process.cwd());
+process.chdir(__dirname);
+
+console.log(__dirname, 'dirname')
+console.log('New directory: ' + process.cwd());
+
 if (process.env.BOT_ENV == 'MACBOOK') {
   bot = new Telegraf('***REMOVED***');
+  url = 'http://localhost:61237/';
 } else {
+  // TLS options
+  // const tlsOptions = {
+  //   key: fs.readFileSync('../.config/letsencrypt/live/mixed.anton-schulte.de/privkey.pem'),
+  //   cert: fs.readFileSync('../.config/letsencrypt/live/mixed.anton-schulte.de/cert.pem')
+  // }
   bot = new Telegraf('698559448:AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
-  // bot.telegram.setWebhook('http://anton-schulte.de:61237/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
+  // bot.startWebhook('/', null, 61237);
+  // bot.telegram.deleteWebhook();
+  // bot.telegram.setWebhook('https://anton-schulte.de/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
+  url = 'https://anton-schulte.de/urlaubsbot/';
+  webHook = true;
 }
 
+const app = express();
+app.set('view engine', 'ejs');
+app.use('/static', express.static('public'));
+
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+});
+if (webHook) {
+  app.use(bot.webhookCallback('/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4'));
+  console.log(url + 'AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4', 'url');
+  bot.telegram.setWebhook(url + 'AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
+} else {
+  bot.startPolling();
+}
+app.listen(61237, () => {
+  console.log('express listening');
+});
 const Group = require('./group');
 const Database = require('./database');
 let database = new Database();
@@ -14,6 +52,7 @@ const Sheet = require('./sheet');
 const AsciiTable = require('ascii-table');
 let groups = [];
 // newGroup scene
+app.use('/group/:id', (new Web(database)));
 
 bot.use((ctx, next) => {
   ctx.groupObj = database.getGroupById(ctx.chat.id);
@@ -90,10 +129,13 @@ bot.command('newMember', ctx => {
     }
   }
 });
-bot.command('test', async ctx => {
-  let test = await ctx.telegram.getChatMember(ctx.chat.id, ctx.groupObj.members[1].id);
-  console.log(test);
+bot.command('groupinfo', ({groupObj, reply}) => {
+  reply(`<a href="${url}group/${groupObj.id}">Inforino</a>`, {parse_mode: 'html'});
 })
+// bot.command('test', async ctx => {
+//   let test = await ctx.telegram.getChatMember(ctx.chat.id, ctx.groupObj.members[1].id);
+//   console.log(test);
+// })
 bot.command('summary', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
@@ -116,36 +158,28 @@ bot.command('add', ctx => {
     ctx.reply('Not in group / none initialized group');
     return;
   }
-  let member = ctx.groupObj.getMemberById(ctx.message.from.id);
+  const member = ctx.groupObj.getMemberById(ctx.message.from.id);
   if (member === null) {
     ctx.reply('You are not in this group. Please use /newMember first!');
     return;
   }
-  console.log('add', ctx.message);
-  let group = ctx.groupObj;
-  let textMentions = ctx.message.entities.filter(entity => entity.type == 'text_mention');
-  let mentions = ctx.message.entities.filter(entity => entity.type == 'mention');
+  const group = ctx.groupObj;
 
-  let memberId = ctx.message.from.id;
-  // if (textMentions.length > 0) {
-  //   memberId = textMentions[0].user.id;
-  // } else if (mentions.length > 0) {
-  //
-  // } else {
-  // }
+  const memberId = ctx.message.from.id;
+  const messageText = ctx.message.text.substr(ctx.message.entities[0].length + 1);
 
-  let matches = ctx.message.text.match(/\d+[.,]?\d*/);
+  const matches = messageText.match(/\d+[.,]?\d*/);
   if (!matches) {
     ctx.reply('No Amount found!');
     return;
   }
-  let amount = parseFloat(matches[0]);
+  const amount = parseFloat(matches[0].replace(',', '.'));
   if (isNaN(amount)) {
     ctx.reply('Could not parse Amount!');
     return;
   }
-  let description = ctx.message.text.replace('/add ', '').replace(/\d+[.,]?\d*/, '').trim();
-  if (description == '') {
+  let description = messageText.replace(/\d+[.,]?\d*/, '').trim();
+  if (description === '') {
     description = 'no desc';
   }
   if (group.addEntry(memberId, description, amount)) {
@@ -237,5 +271,5 @@ bot.on('message', (ctx) => {
   // console.log(ctx.message);
 })
 
-
-bot.startPolling()
+// if (process.env.BOT_ENV == 'MACBOOK') {
+// }

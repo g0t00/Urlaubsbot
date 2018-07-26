@@ -34,7 +34,7 @@ module.exports = class Database {
   }
   getGroupById(id) {
     let group = db.get('groups').find({id}).value();
-    console.log(group, 'getGroupById');
+    console.log(group, 'getGroupById', id);
     return group;
   }
   save() {

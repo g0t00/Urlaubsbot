@@ -1,5 +1,5 @@
 module.exports = class Group {
-  constructor(name, id, members = null, sheetId = null) {
+  constructor(name, id, members = null, sheetId = null, currency = null) {
     this.members = members || [];
     this.id = id;
     this.name = name;
@@ -8,7 +8,8 @@ module.exports = class Group {
         member.entries = [];
       }
     });
-    this.sheetId = sheetId
+    this.sheetId = sheetId;
+    this.currency = currency;
   }
   getSum() {
     return this.members.reduce((accMembers, member) => {
