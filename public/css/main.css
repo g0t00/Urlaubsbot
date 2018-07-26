@@ -1,0 +1,13 @@
+.members {
+  display: flex;
+}
+.member {
+  flex-grow: 1;
+  margin-right: .5em;
+}
+.member:last-child {
+  margin-right: 0;
+}
+.member table {
+  width: 100%;
+}

@@ -1,0 +1,42 @@
+<!-- views/pages/index.ejs -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <% include ../partials/head %>
+</head>
+<body class="container">
+
+<header>
+    <% include ../partials/header %>
+</header>
+
+<main>
+    <div class="jumbotron">
+        <h1>Groupinfo</h1>
+        <p>Membercount: <%= group.getCount() %>; Total Cost: <%= group.getSum().toFixed(2) %>; Average: <%= (group.getSum()/group.getCount()).toFixed(2) %></p>
+        <p><a href="https://docs.google.com/spreadsheets/d/<%=group.sheetId%>">Sheet</a></p>
+        <code><%= debug %></code>
+        <div class="members">
+          <% group.members.forEach(member => { %>
+            <div class="card member">
+              <div class="card-body">
+                <table class="table table-striped">
+                  <tr><th><%= member.name %></th><th><%= member.entries.reduce((acc, add) => acc + add.amount, 0) %></th></tr>
+                  <% member.entries.forEach(entry => { %>
+                    <tr><td><%=entry.description%></td><td><%= entry.amount %></td></tr>
+                  <% }); %>
+                </table>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <% include ../partials/footer %>
+</footer>
+
+</body>
+</html>
