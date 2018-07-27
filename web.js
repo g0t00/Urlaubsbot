@@ -10,6 +10,7 @@ module.exports = class Web {
         member.memberSum = member.entries.reduce((acc, add) => acc + add.amount, 0).toFixed(2);
         member.toPay = (groupAvg - member.memberSum).toFixed(2);
       });
+ 
       res.render('pages/group', {
         group: groupObj,
         members,
