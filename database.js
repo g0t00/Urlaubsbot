@@ -5,7 +5,7 @@ const Group = require('./group');
 const parseObjectReplaceGroupObj = obj => {
   if (obj.groups && obj.groups.map) {
     obj.groups = obj.groups.map(group => {
-      return new Group(group.name, group.id, group.members, group.sheetId);
+      return new Group(group.name, group.id, group.members, group.sheetId, group.currency);
     });
     return obj;
   }

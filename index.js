@@ -33,7 +33,9 @@ if (process.env.BOT_ENV == 'MACBOOK') {
   url = 'https://anton-schulte.de/urlaubsbot/';
   webHook = true;
 }
-
+bot.telegram.getMe().then((botInfo) => {
+  bot.options.username = botInfo.username
+});
 const app = express();
 app.set('view engine', 'ejs');
 app.use('/static', express.static('public'));
@@ -154,7 +156,28 @@ bot.command('summary', ctx => {
 
   ctx.replyWithHTML('<code>' + group.getSummaryTable() + '</code>');
 });
-bot.command('add', ctx => {
+bot.command('setcurrency', ({groupObj, message, reply}) => {
+  if (!groupObj) {
+    return reply('Not in group / none initialized group');
+  }
+  const messageText = message.text.substr(message.entities[0].length + 1);
+  const currency = parseFloat(messageText.replace(',', '.'));
+  if (isNaN(currency)) {
+    return reply('Could not parse Currency!');
+  }
+  groupObj.currency = currency;
+  reply(`Currency set to ${currency}.`);
+});
+bot.command('getcurrency', ({groupObj, reply}) => {
+  if (!groupObj) {
+    return reply('Not in group / none initialized group');
+  }
+  if (groupObj.currency === null) {
+    return reply('No Currency set!');
+  }
+  reply(`Currency is ${groupObj.currency}.`);
+});
+let add = (ctx, useForeign) => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
     return;
@@ -174,22 +197,35 @@ bot.command('add', ctx => {
     ctx.reply('No Amount found!');
     return;
   }
-  const amount = parseFloat(matches[0].replace(',', '.'));
+  let amount = parseFloat(matches[0].replace(',', '.'));
   if (isNaN(amount)) {
     ctx.reply('Could not parse Amount!');
     return;
+  }
+  if (useForeign) {
+    if (group.currency === null) {
+      return ctx.reply('Currency not set!');
+    }
+    amount = amount / group.currency;
   }
   let description = messageText.replace(/\d+[.,]?\d*/, '').trim();
   if (description === '') {
     description = 'no desc';
   }
   if (group.addEntry(memberId, description, amount)) {
-    ctx.reply('Entry added To ' + group.getMemberById(memberId).name + '(' + memberId + ')');
+    ctx.reply(`Entry added To ${group.getMemberById(memberId).name} (${memberId})\n` +
+  `${description}: ${amount}`);
   } else {
     ctx.reply('Error while adding!');
   }
+};
+bot.command('add', ctx => {
+  add(ctx, false);
 });
-bot.command('addother', ({session, groupObj, message, reply}) => {
+bot.command('addforeign', ctx => {
+  add(ctx, true);
+});
+let addOther = ({session, groupObj, message, reply}, useForeign) => {
   if (!groupObj) {
     reply('Not in group / none initialized group');
     return;
@@ -200,10 +236,16 @@ bot.command('addother', ({session, groupObj, message, reply}) => {
     reply('No Amount found!');
     return;
   }
-  const amount = parseFloat(matches[0].replace(',', '.'));
+  let amount = parseFloat(matches[0].replace(',', '.'));
   if (isNaN(amount)) {
     reply('Could not parse Amount!');
     return;
+  }
+  if (useForeign) {
+    if (groupObj.currency === null) {
+      return reply('Currency not set!');
+    }
+    amount = amount / groupObj.currency;
   }
   let description = messageText.replace(/\d+[.,]?\d*/, '').trim();
   if (description === '') {
@@ -218,15 +260,22 @@ bot.command('addother', ({session, groupObj, message, reply}) => {
   });
   const {members} = groupObj;
   const keyboard = members.map(member => {
-    return Markup.callbackButton(member.name, 'a' + uuid + '/' + member.id);
+    return [Markup.callbackButton(member.name, 'a' + uuid + '/' + member.id)];
   });
-  keyboard.push(Markup.callbackButton('cancel', 'c'));
+  keyboard.push([Markup.callbackButton('cancel', 'c')]);
+  console.log(keyboard)
   return reply(`Entry preview: "${description}: ${amount}".\nPlease select member.`, Markup
-    .inlineKeyboard([keyboard])
+    .inlineKeyboard(keyboard)
     // .oneTime()
     // .resize()
     .extra()
   );
+};
+bot.command('addother', ctx => {
+  addOther(ctx, false);
+});
+bot.command('addotherforeign', ctx => {
+  addOther(ctx, true);
 });
 bot.command('setsheet', ctx => {
   if (!ctx.groupObj) {
@@ -346,12 +395,20 @@ bot.action('c', async ({callbackQuery, telegram}) => {
 bot.command('help', ctx => {
   const str = `/initializegroup - initialize group, so bot knows it;
 /newmember - adds yourself to group.
+/newmembernotelegram - adds a member who has no telegram
 /summary - get summary.
 /setsheetid - set Google Sheets ID to export to
 /getsheetlink - get Google Sheets Link
 /export - export to google Sheet
 /memberinfo - get Info about you
+/groupinfo - gets Link to fancy group view
+/setcurrency - Sets exchange rate for foreign currrency to be used. All foreign amounts will be divide by this value.
+/getcurrency - Gets exchange rate
 /add - Adds amount. Please only input one number after, because it will be used as amount.
+/addforeign - Adds amount in foreign currency. Will be divided by currency value. Orginal amount will be discarded.
+/addother - Adds amount to different member.
+/addotherforeign - Adds amount to different member in foreign currency.
+
 `
 ctx.reply(str);
 });
