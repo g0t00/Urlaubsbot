@@ -12,8 +12,8 @@ $(() => {
       id: $(event.target).parents('.members').data('id'),
       memberId: $(event.target).parents('.member').data('memberId'),
       uuid: $(event.target).parents('.entry').data('uuid'),
-      description: $(event.target).parents('tr').find('.description').val(),
-      amount: $(event.target).parents('tr').find('.amount').val()
+      description: $(event.target).parents('.entry').find('.description').val(),
+      amount: $(event.target).parents('.entry').find('.amount').val()
     }).then(() => {
       window.location.reload();
     });
