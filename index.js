@@ -1,3 +1,4 @@
+const util = require('util');
 const Telegraf = require('telegraf');
 const Markup = require('telegraf/markup');
 const express = require('express');
@@ -301,10 +302,11 @@ bot.command('export', ctx => {
   (async () => {
     try {
       await Sheet.export(group);
+      ctx.reply('Export done.');
     } catch (e) {
-      console.error(e);
+      ctx.reply(util.inspect(e));
+      ctx.reply('Did you share to matecounterbot@matecounterbot.iam.gserviceaccount.com ?');
     }
-    ctx.reply('Export done.');
   })();
 });
 bot.command('memberinfo', ctx => {
