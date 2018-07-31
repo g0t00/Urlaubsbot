@@ -9,8 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^5.2.0",
     "ascii-table": "0.0.9",
     "bluebird": "^3.5.1",
+    "circular-json": "^0.5.5",
     "ejs": "^2.6.1",
     "express": "^4.16.3",
     "google-spreadsheet": "^2.0.5",
@@ -26,5 +28,11 @@
   },
   "xo": {
     "space": true
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "db.blub",
+      "session.db"
+    ]
   }
 }

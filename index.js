@@ -1,40 +1,30 @@
-const fs = require('fs');
 const Telegraf = require('telegraf');
 const Markup = require('telegraf/markup');
-
 const express = require('express');
-const Web = require('./web');
 const LocalSession = require('telegraf-session-local');
 const uuidv1 = require('uuid/v1');
 const _ = require('lodash');
 
+const Web = require('./web');
+const Group = require('./group');
+const Database = require('./database');
+const Sheet = require('./sheet');
+
 let bot;
 let webHook = false;
 let url;
-console.log('Starting directory: ' + process.cwd());
 process.chdir(__dirname);
 
-console.log(__dirname, 'dirname')
-console.log('New directory: ' + process.cwd());
-
-if (process.env.BOT_ENV == 'MACBOOK') {
+if (process.env.BOT_ENV === 'MACBOOK') {
   bot = new Telegraf('***REMOVED***');
-  url = 'http://localhost:61237/';
+  url = 'http://127.0.0.1:61237/';
 } else {
-  // TLS options
-  // const tlsOptions = {
-  //   key: fs.readFileSync('../.config/letsencrypt/live/mixed.anton-schulte.de/privkey.pem'),
-  //   cert: fs.readFileSync('../.config/letsencrypt/live/mixed.anton-schulte.de/cert.pem')
-  // }
   bot = new Telegraf('698559448:AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
-  // bot.startWebhook('/', null, 61237);
-  // bot.telegram.deleteWebhook();
-  // bot.telegram.setWebhook('https://anton-schulte.de/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
   url = 'https://anton-schulte.de/urlaubsbot/';
   webHook = true;
 }
-bot.telegram.getMe().then((botInfo) => {
-  bot.options.username = botInfo.username
+bot.telegram.getMe().then(botInfo => {
+  bot.options.username = botInfo.username;
 });
 const app = express();
 app.set('view engine', 'ejs');
@@ -45,7 +35,6 @@ app.get('/', (req, res) => {
 });
 if (webHook) {
   app.use(bot.webhookCallback('/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4'));
-  console.log(url + 'AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4', 'url');
   bot.telegram.setWebhook(url + 'AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
 } else {
   bot.startPolling();
@@ -53,16 +42,18 @@ if (webHook) {
 app.listen(61237, () => {
   console.log('express listening');
 });
-const Group = require('./group');
-const Database = require('./database');
-let database = new Database();
-const Sheet = require('./sheet');
-const AsciiTable = require('ascii-table');
-let groups = [];
-// newGroup scene
-app.use('/group/:id', (new Web(database)));
 
+const database = new Database(bot.telegram);
+app.use(express.json());
+app.use(express.urlencoded());
+app.use('/font-awesome', express.static('./node_modules/@fortawesome/fontawesome-free'));
 
+app.use('/group', (new Web(database)));
+app.use((req, res, next) => {
+  console.log('database save');
+  database.save();
+  next();
+});
 bot.use((ctx, next) => {
   ctx.groupObj = database.getGroupById(ctx.chat.id);
   return next(ctx).then(() => {
@@ -71,25 +62,37 @@ bot.use((ctx, next) => {
 });
 bot.use((new LocalSession({database: 'session.db'})));
 
-bot.on('group_chat_created', async ctx => {
-  const group = new Group(ctx.chat.title, ctx.chat.id);
-  ctx.reply('Neue Gruppe angelegt: ' + group.name);
+bot.on('group_chat_created', ({reply, chat, message}) => {
+  const group = new Group({name: chat.title, id: chat.id});
+  reply('Neue Gruppe angelegt: ' + group.name);
+
   database.newGroup(group);
+
+  if (group.addMember(message.from.first_name, message.from.id)) {
+    reply(`Member ${message.from.first_name} added (id: ${message.from.id})`);
+  }
 });
-bot.on('new_chat_members', async ctx => {
-  console.log('new_chat_members', ctx);
+bot.on('new_chat_members', ({groupObj, reply, message}) => {
+  if (!groupObj) {
+    reply('Not in group / none initialized group');
+    return;
+  }
+  if (groupObj.addMember(message.from.first_name, message.from.id)) {
+    reply(`Member ${message.from.first_name} added (id: ${message.from.id})`);
+  } else {
+    reply('You are already in group!');
+  }
 });
 bot.command('initializegroup', ctx => {
   if (ctx.groupObj) {
     ctx.reply('Group already initialized');
     return;
   }
-  const group = new Group(ctx.chat.title, ctx.chat.id);
+  const group = new Group({name: ctx.chat.title, id: ctx.chat.id}, bot.telegram);
   database.newGroup(group);
   ctx.reply('Group initialized');
 });
 bot.command('members', ctx => {
-  console.log(ctx.groupObj);
   if (ctx.groupObj) {
     if (ctx.groupObj.members.length === 0) {
       ctx.reply('Group empty.');
@@ -118,10 +121,7 @@ bot.command('newmember', ctx => {
     ctx.reply('Not in group / none initialized group');
     return;
   }
-  console.log(ctx.groupObj);
-  if (ctx.groupObj.addMember(ctx.message.from.first_name, ctx.message.from.id)) {
-    ctx.reply(`Member ${ctx.message.from.first_name} added (id: ${ctx.message.from.id})`);
-  } else {
+  if (!ctx.groupObj.addMember(ctx.message.from.first_name, ctx.message.from.id)) {
     ctx.reply('You are already in group!');
   }
 });
@@ -137,15 +137,16 @@ bot.command('newmembernotelegram', ({message, groupObj, reply}) => {
   if (memberName === '') {
     return reply('No Name given!');
   }
-  if (groupObj.addMember(memberName, memberName)) {
-    reply(`Member ${memberName} added (id: ${memberName})`);
-  } else {
+  if (!groupObj.addMember(memberName, memberName)) {
     reply('You are already in group!');
   }
 });
 bot.command('groupinfo', ({groupObj, reply}) => {
-  reply(`<a href="${url}group/${groupObj.id}">Inforino</a>`, {parse_mode: 'html'});
-})
+  if (!groupObj) {
+    return reply('Not in group / none initialized group');
+  }
+  reply(`<a href="${url}group/${groupObj.id}">Inforino</a>`, {parse_mode: 'html'}); // eslint-disable-line camelcase
+});
 
 bot.command('summary', ctx => {
   if (!ctx.groupObj) {
@@ -177,7 +178,7 @@ bot.command('getcurrency', ({groupObj, reply}) => {
   }
   reply(`Currency is ${groupObj.currency}.`);
 });
-let add = (ctx, useForeign) => {
+const add = (ctx, useForeign) => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
     return;
@@ -206,16 +207,13 @@ let add = (ctx, useForeign) => {
     if (group.currency === null) {
       return ctx.reply('Currency not set!');
     }
-    amount = amount / group.currency;
+    amount /= group.currency;
   }
   let description = messageText.replace(/\d+[.,]?\d*/, '').trim();
   if (description === '') {
     description = 'no desc';
   }
-  if (group.addEntry(memberId, description, amount)) {
-    ctx.reply(`Entry added To ${group.getMemberById(memberId).name} (${memberId})\n` +
-  `${description}: ${amount}`);
-  } else {
+  if (!group.addEntry(memberId, description, amount)) {
     ctx.reply('Error while adding!');
   }
 };
@@ -225,7 +223,7 @@ bot.command('add', ctx => {
 bot.command('addforeign', ctx => {
   add(ctx, true);
 });
-let addOther = ({session, groupObj, message, reply}, useForeign) => {
+const addOther = ({session, groupObj, message, reply}, useForeign) => {
   if (!groupObj) {
     reply('Not in group / none initialized group');
     return;
@@ -245,7 +243,7 @@ let addOther = ({session, groupObj, message, reply}, useForeign) => {
     if (groupObj.currency === null) {
       return reply('Currency not set!');
     }
-    amount = amount / groupObj.currency;
+    amount /= groupObj.currency;
   }
   let description = messageText.replace(/\d+[.,]?\d*/, '').trim();
   if (description === '') {
@@ -263,7 +261,6 @@ let addOther = ({session, groupObj, message, reply}, useForeign) => {
     return [Markup.callbackButton(member.name, 'a' + uuid + '/' + member.id)];
   });
   keyboard.push([Markup.callbackButton('cancel', 'c')]);
-  console.log(keyboard)
   return reply(`Entry preview: "${description}: ${amount}".\nPlease select member.`, Markup
     .inlineKeyboard(keyboard)
     // .oneTime()
@@ -317,7 +314,6 @@ bot.command('memberinfo', ctx => {
     return;
   }
   const group = ctx.groupObj;
-  console.log('hello');
   ctx.replyWithHTML(group.getMemberinfo(ctx.message.from.id));
 });
 bot.command('remove', ({groupObj, reply, message}) => {
@@ -330,7 +326,6 @@ bot.command('remove', ({groupObj, reply, message}) => {
   if (member === null) {
     return;
   }
-  console.log(member);
   const keyboard = member.entries.map(entry => {
     return Markup.callbackButton(entry.description + ': ' + entry.amount, 'r' + entry.uuid);
   });
@@ -349,8 +344,7 @@ bot.action(/r/, async ({groupObj, callbackQuery, telegram, reply}) => {
   }
   const uuid = callbackQuery.data.replace(/^r/, '');
   try {
-    const removedEntry = groupObj.removeEntry(callbackQuery.from.id, uuid)[0];
-    reply('Removed Entry: ' + removedEntry.description + ': ' + removedEntry.amount);
+    groupObj.removeEntry(callbackQuery.from.id, uuid);
   } catch (e) {
     reply(JSON.stringify(e));
   } finally {
@@ -365,7 +359,6 @@ bot.action(/a/, async ({groupObj, callbackQuery, telegram, reply, session}) => {
   const matches = callbackQuery.data.match(/^a([0-9a-f-]*)\/(.*)$/i, '');
   if (matches === null) {
     telegram.deleteMessage(callbackQuery.message.chat.id, callbackQuery.message.message_id);
-    console.log(callbackQuery.data);
     return reply('Can not parse callback.');
   }
   const [, uuid, memberId] = matches;
@@ -378,21 +371,17 @@ bot.action(/a/, async ({groupObj, callbackQuery, telegram, reply, session}) => {
   }
   groupObj.addEntry(memberId, entry.description, entry.amount);
   telegram.deleteMessage(callbackQuery.message.chat.id, callbackQuery.message.message_id);
-  const member = groupObj.getMemberById(memberId);
-  console.log(memberId, 'memberId', groupObj.members, member);
   const index = _.findIndex(session.addOthers, entries => entries.uuid === uuid);
   session.addOthers.splice(index, 1);
-  return reply('Entry added To ' + member.name + '(' + memberId + ')');
 });
 bot.action('c', async ({callbackQuery, telegram}) => {
   try {
     telegram.deleteMessage(callbackQuery.message.chat.id, callbackQuery.message.message_id);
   } catch (e) {
-    console.error(e);
-    console.log(callbackQuery);
+    console.error(e, callbackQuery);
   }
 });
-bot.command('help', ctx => {
+bot.command('help', ({reply}) => {
   const str = `/initializegroup - initialize group, so bot knows it;
 /newmember - adds yourself to group.
 /newmembernotelegram - adds a member who has no telegram
@@ -407,8 +396,6 @@ bot.command('help', ctx => {
 /add - Adds amount. Please only input one number after, because it will be used as amount.
 /addforeign - Adds amount in foreign currency. Will be divided by currency value. Orginal amount will be discarded.
 /addother - Adds amount to different member.
-/addotherforeign - Adds amount to different member in foreign currency.
-
-`
-ctx.reply(str);
+/addotherforeign - Adds amount to different member in foreign currency.`;
+  reply(str);
 });

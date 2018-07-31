@@ -32,7 +32,6 @@ module.exports = {
     group.members.forEach((member, i) => {
       dataCells[i + 1].value = member.name;
     });
-    console.log(dataCells.length);
     let entryCounter = 0;
 
     group.members.forEach((member, i) => {

@@ -4,10 +4,10 @@
   margin-right: -.5em;
 }
 .member {
-  flex-grow: 1;
-  margin-right: .5em;
-  margin-bottom: .5em;
   flex-basis: 200px;
+  flex-grow: 1;
+  margin-bottom: .5em;
+  margin-right: .5em;
 }
 .member table {
   width: 100%;

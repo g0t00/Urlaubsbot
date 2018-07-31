@@ -22,16 +22,31 @@
               <div class="card-body">
                 <h5 class="card-title"><%= member.name %></h5>
                 <table class="table table-striped">
-                  <tr><th>Total</th><th><%= member.memberSum %></th></tr>
+                  <tr><th>Total</th><th><%= member.memberSum %></th><th></th></tr>
                   <% member.entries.forEach(entry => { %>
-                    <tr><td><%=entry.description%></td><td><%= entry.amount.toFixed(2) %></td></tr>
+                    <tr><td><%=entry.description%></td><td><%= entry.amount.toFixed(2) %></td><td><i class="fas fa-trash" onclick="deleteEntry('<%= group.id %>', '<%= entry.uuid %>');"></i></td></tr>
                   <% }); %>
                   <% if (member.toPay > 0) { %>
-                    <tr class="table-danger"><td>To Pay:</td><td><%= member.toPay %></td></tr>
+                    <tr class="table-danger"><td>To Pay:</td><td><%= member.toPay %></td><<td></td>/tr>
                   <% } else { %>
-                    <tr class="table-success"><td>Gets:</td><td><%= member.toPay %></td></tr>
+                    <tr class="table-success"><td>Gets:</td><td><%= member.toPay %></td><td></td></tr>
                   <% } %>
                 </table>
+                <form class="form-inline" method="post" action="new-entry">
+                  <div class="form-row align-items-center">
+                    <input type="hidden" name="id" value="<%= group.id %>">
+                    <input type="hidden" name="memberId" value="<%= member.id%>">
+                    <div class="col-auto">
+                      <input class="form-control" name="description" placeholder="description">
+                    </div>
+                    <div class="col-auto">
+                      <input class="form-control" name="amount" type="number" placeholder="amount">
+                    </div>
+                    <div class="col-auto">
+                      <button class="btn btn-primary" type="submit">Add</button>
+                    </div>
+                  </div>
+                </form>
               </div>
             </div>
           <% }); %>

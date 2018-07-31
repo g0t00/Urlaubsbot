@@ -3,7 +3,7 @@ const uuid = require('uuid/v1');
 const _ = require('lodash');
 
 module.exports = class Group {
-  constructor(name, id, members = null, sheetId = null, currency = null) {
+  constructor({name, id, members = null, sheetId = null, currency = null}, telegram) {
     this.members = members || [];
     this.id = id;
     this.name = name;
@@ -12,6 +12,7 @@ module.exports = class Group {
         member.entries = [];
       }
     });
+    this.telegram = telegram;
     this.sheetId = sheetId;
     this.currency = currency;
     this.members.forEach(member => {
@@ -50,6 +51,26 @@ module.exports = class Group {
     });
   }
 
+  deleteEntryByUuid(uuid) {
+    let found = false;
+    let removedEntry;
+    let memberForEntry;
+    this.members.forEach(member => {
+      if (found === false) {
+        const i = _.findIndex(member.entries, entry => entry.uuid === uuid);
+        if (i > -1) {
+          found = true;
+          removedEntry = member.entries.splice(i, 1)[0];
+          memberForEntry = member;
+        }
+      }
+    });
+    this.telegram.sendMessage(this.id, `Removed Entry: ${removedEntry.description}: ${removedEntry.amount}\n` +
+    `for ${memberForEntry.name} (${memberForEntry.id})`);
+
+    return found;
+  }
+
   getMemberById(id) {
     return _.find(this.members, member => String(member.id) === String(id));
   }
@@ -66,19 +87,25 @@ module.exports = class Group {
     }
     const member = {name, id, entries: []};
     this.members.push(member);
+    this.telegram.sendMessage(this.id, `Member ${name} added (id: ${id}`);
     return true;
   }
 
   addEntry(memberId, description, amount) {
     let found = false;
     this.members.forEach(member => {
-      if (member.id === memberId) {
+      if (String(member.id) === String(memberId)) {
         member.entries.push({
           description, amount, time: Date.now(), uuid: uuid()
         });
+        this.telegram.sendMessage(this.id, `Entry added To ${this.getMemberById(member.id).name} (${member.id})\n` +
+      `${description}: ${amount}`);
         found = true;
       }
     });
+    if (!found) {
+      console.log(`User not found ${memberId}, ${description}, ${amount}`);
+    }
     return found;
   }
 
@@ -93,7 +120,11 @@ module.exports = class Group {
     if (index === -1) {
       throw new Error('uuid not found!');
     }
-    return member.entries.splice(index, 1);
+    const removedEntry = member.entries.splice(index, 1)[0];
+    this.telegram.sendMessage(this.id, `Removed Entry: ${removedEntry.description}: ${removedEntry.amount}\n` +
+    `for ${member.name} (${member.id})`);
+
+    return removedEntry;
   }
 
   getSummaryTable() {
@@ -132,7 +163,6 @@ module.exports = class Group {
     });
     str += table.toString();
     str += '</code>';
-    console.log(str);
     return str;
   }
 };
