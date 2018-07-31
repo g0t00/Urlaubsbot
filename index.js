@@ -46,7 +46,7 @@ app.listen(61237, () => {
 
 const database = new Database(bot.telegram);
 app.use(express.json());
-app.use(express.urlencoded());
+app.use(express.urlencoded({extended: true}));
 app.use('/font-awesome', express.static('./node_modules/@fortawesome/fontawesome-free'));
 
 app.use('/group', (new Web(database)));
