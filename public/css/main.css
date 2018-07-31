@@ -12,3 +12,6 @@
 .member table {
   width: 100%;
 }
+.save {
+  cursor: pointer;
+}

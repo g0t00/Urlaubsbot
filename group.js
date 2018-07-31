@@ -127,6 +127,28 @@ module.exports = class Group {
     return removedEntry;
   }
 
+  editEntry(memberId, uuid, {description, amount}) {
+    const member = this.getMemberById(memberId);
+    if (member === null) {
+      throw new Error('member not found!');
+    }
+    const index = _.findIndex(member.entries, entry => {
+      return entry.uuid === uuid;
+    });
+    if (index === -1) {
+      throw new Error('uuid not found!');
+    }
+    const newEntry = member.entries[index];
+    const oldEntry = JSON.parse(JSON.stringify(newEntry));
+    newEntry.description = description;
+    newEntry.amount = amount;
+    this.telegram.sendMessage(this.id, `Changed Entry from ${oldEntry.description}: ${oldEntry.amount}\n` +
+    `-> ${newEntry.description}: ${newEntry.amount}\n` +
+    `for ${member.name} (${member.id})`);
+
+    return newEntry;
+  }
+
   getSummaryTable() {
     const sum = this.getSum();
     const avg = sum / this.members.length;

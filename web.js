@@ -52,6 +52,20 @@ module.exports = class Web {
       }
       res.send('Error while adding');
     });
+    router.post('/edit', async (req, res) => {
+      let {id, memberId, uuid, description, amount} = req.body;
+      id = parseInt(id, 10);
+      amount = parseFloat(String(amount).replace(',', '.'), 10);
+      const groupObj = database.getGroupById(id);
+      if (groupObj === null || typeof groupObj === 'undefined') {
+        return res.send('Group not found/no Group ID transmitted!');
+      }
+      groupObj.editEntry(memberId, uuid, {description, amount});
+      database.save();
+      console.log(req.body);
+      database.save();
+      res.send('ok');
+    });
     return router;
   }
 };

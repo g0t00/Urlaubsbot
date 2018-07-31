@@ -16,18 +16,25 @@
         <h1>Groupinfo</h1>
         <p>Membercount: <%= group.members.length %>; Total Cost: <%= group.getSum().toFixed(2) %>; Average: <%= (group.getSum()/group.members.length).toFixed(2)%> Currency: <%= group.currency || 'not set' %></p>
         <p><a href="https://docs.google.com/spreadsheets/d/<%=group.sheetId%>">Sheet</a></p>
-        <div class="members">
+        <div class="members" data-id="<%= group.id %>">
           <% members.forEach(member => { %>
-            <div class="card member">
+            <div class="card member" data-member-id="<%= member.id %>">
               <div class="card-body">
                 <h5 class="card-title"><%= member.name %></h5>
                 <table class="table table-striped">
                   <tr><th>Total</th><th><%= member.memberSum %></th><th></th></tr>
                   <% member.entries.forEach(entry => { %>
-                    <tr><td><%=entry.description%></td><td><%= entry.amount.toFixed(2) %></td><td><i class="fas fa-trash" onclick="deleteEntry('<%= group.id %>', '<%= entry.uuid %>');"></i></td></tr>
+                    <tr class="entry" data-uuid="<%=entry.uuid%>">
+                      <td><input type="text" class="description" value="<%= entry.description %>"></td>
+                      <td><input type="number" class="amount" value="<%= entry.amount.toFixed(2) %>"></td>
+                      <td>
+                        <i class="fas fa-save save"></i>
+                        <i class="fas fa-trash" onclick="deleteEntry('<%= group.id %>', '<%= entry.uuid %>');"></i>
+                      </td>
+                    </tr>
                   <% }); %>
                   <% if (member.toPay > 0) { %>
-                    <tr class="table-danger"><td>To Pay:</td><td><%= member.toPay %></td><<td></td>/tr>
+                    <tr class="table-danger"><td>To Pay:</td><td><%= member.toPay %></td><td></td></tr>
                   <% } else { %>
                     <tr class="table-success"><td>Gets:</td><td><%= member.toPay %></td><td></td></tr>
                   <% } %>

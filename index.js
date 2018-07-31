@@ -274,16 +274,15 @@ bot.command('addother', ctx => {
 bot.command('addotherforeign', ctx => {
   addOther(ctx, true);
 });
-bot.command('setsheet', ctx => {
-  if (!ctx.groupObj) {
-    ctx.reply('Not in group / none initialized group');
+bot.command('setsheet', ({groupObj, reply, message}) => {
+  if (!groupObj) {
+    reply('Not in group / none initialized group');
     return;
   }
-  const group = ctx.groupObj;
-  let message = ctx.message.text;
-  message = message.replace('/setSheet ', '');
-  group.sheetId = message;
-  ctx.reply('Sheet Id Set.');
+  const group = groupObj;
+  const messageText = message.text.substr(message.entities[0].length + 1);
+  group.sheetId = messageText;
+  reply('Sheet Id Set.');
 });
 bot.command('getsheetlink', ctx => {
   if (!ctx.groupObj) {
@@ -386,7 +385,7 @@ bot.command('help', ({reply}) => {
 /newmember - adds yourself to group.
 /newmembernotelegram - adds a member who has no telegram
 /summary - get summary.
-/setsheetid - set Google Sheets ID to export to
+/setsheet - set Google Sheets ID to export to
 /getsheetlink - get Google Sheets Link
 /export - export to google Sheet
 /memberinfo - get Info about you
