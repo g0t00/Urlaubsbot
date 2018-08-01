@@ -45,6 +45,10 @@ module.exports = class Database {
     this.db.get('groups').push(group).write();
   }
 
+  getGroups() {
+    return this.db.get('groups').value();
+  }
+
   getGroupById(id) {
     const group = this.db.get('groups').find({id}).value();
     return group;

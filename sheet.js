@@ -63,5 +63,6 @@ module.exports = {
       summaryCells[(3 * (i + 1)) + 2].formula = '=B' + (i + 2) + ' - Sum(data!B:' + module.exports._getColLetter(group.members.length) + ')/' + group.members.length;
     });
     await promisify(summarySheet.bulkUpdateCells)(summaryCells);
+    group.lastExport = new Date().getTime();
   }
 };

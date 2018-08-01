@@ -16,11 +16,11 @@
         <h1>Groupinfo</h1>
         <p>Membercount: <%= group.members.length %>; Total Cost: <%= group.getSum().toFixed(2) %>; Average: <%= (group.getSum()/group.members.length).toFixed(2)%> Currency: <%= group.currency || 'not set' %></p>
         <p>
-          <a href="https://docs.google.com/spreadsheets/d/<%=group.sheetId%>">Sheet-Link</a>
+          <a target="_blank" href="https://docs.google.com/spreadsheets/d/<%=group.sheetId%>">Sheet-Link</a>
           &nbsp;&nbsp;&nbsp;&nbsp;<a href="sheet-export/<%= group.id %>" class="sheet-export">Export</a>
-          <i class="fas fa-spinner fa-spin export-loading"></i>
-          <i class="fas fa-check-circle export-done"></i>
-        </p>
+          <i class="fas fa-lg fa-spinner fa-spin export-loading"></i>
+          <i class="fas fa-lg fa-check-circle export-done"></i>
+        <span class="right-align">Last Export: <span class="time"><%= group.lastExport %></span></span></p>
         <div class="members" data-id="<%= group.id %>">
           <% members.forEach(member => { %>
             <div class="card member" data-member-id="<%= member.id %>">
@@ -37,8 +37,8 @@
                       <td><input type="number" class="amount" value="<%= entry.amount.toFixed(2) %>"></td>
 
                       <td>
-                        <i class="fas fa-save save"></i>
-                        <i class="fas fa-trash" onclick="deleteEntry('<%= group.id %>', '<%= entry.uuid %>');"></i>
+                        <i class="fas fa-lg fa-save save"></i>
+                        <i class="fas fa-lg fa-trash" onclick="deleteEntry('<%= group.id %>', '<%= entry.uuid %>');"></i>
                       </td>
                     </tr>
                   <% }); %>
@@ -70,7 +70,7 @@
         <div class="card">
           <div class="card-body">
             <h5 class="card-title">Debug</h5>
-            <pre><code><%- debug %></code></pre>
+            <pre><code><%- debugInfo %></code></pre>
           </div>
         </div>
     </div>

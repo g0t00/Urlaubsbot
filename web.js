@@ -13,12 +13,15 @@ module.exports = class Web {
         member.memberSum = member.entries.reduce((acc, add) => acc + add.amount, 0).toFixed(2);
         member.toPay = (groupAvg - member.memberSum).toFixed(2);
       });
-
-      res.render('pages/group', {
-        group: groupObj,
-        members,
-        debug: JSON.stringify(members, null, 2)
-      });
+      try {
+        res.render('pages/group', {
+          group: groupObj,
+          members,
+          debugInfo: JSON.stringify(members, null, 2)
+        });
+      } catch (e) {
+        console.error(e);
+      }
     });
     router.get('/delete/:groupId/:entryUuid', (req, res) => {
       const groupId = parseInt(req.params.groupId, 10);

@@ -3,7 +3,7 @@ const uuid = require('uuid/v1');
 const _ = require('lodash');
 
 module.exports = class Group {
-  constructor({name, id, members = null, sheetId = null, currency = null}, telegram) {
+  constructor({name, id, members = null, sheetId = null, currency = null, lastExport = null}, telegram) {
     this.members = members || [];
     this.id = id;
     this.name = name;
@@ -15,6 +15,7 @@ module.exports = class Group {
     this.telegram = telegram;
     this.sheetId = sheetId;
     this.currency = currency;
+    this.lastExport = lastExport;
     this.members.forEach(member => {
       member.entries.forEach(entry => {
         if (typeof entry.uuid === 'undefined' || entry.uuid === null) {

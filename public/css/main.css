@@ -29,3 +29,6 @@
 .export-loading, .export-done {
   display: none;
 }
+.right-align {
+  float: right;
+}

@@ -5,6 +5,7 @@ const express = require('express');
 const LocalSession = require('telegraf-session-local');
 const uuidv1 = require('uuid/v1');
 const _ = require('lodash');
+const cron = require('cron');
 
 const Web = require('./web');
 const Group = require('./group');
@@ -309,6 +310,20 @@ bot.command('export', ctx => {
     }
   })();
 });
+const exportJob = new cron.CronJob({
+  cronTime: '*/15 * * * *',
+  onTick: () => {
+    database.getGroups().forEach(group => {
+      if (group.sheetId !== null) {
+        Sheet.export(group);
+      }
+    });
+  },
+  runOnInit: true
+});
+exportJob.start();
+console.log('exportJob status', exportJob.running);
+
 bot.command('memberinfo', ctx => {
   if (!ctx.groupObj) {
     ctx.reply('Not in group / none initialized group');
