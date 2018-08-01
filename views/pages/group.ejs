@@ -15,7 +15,12 @@
     <div class="jumbotron">
         <h1>Groupinfo</h1>
         <p>Membercount: <%= group.members.length %>; Total Cost: <%= group.getSum().toFixed(2) %>; Average: <%= (group.getSum()/group.members.length).toFixed(2)%> Currency: <%= group.currency || 'not set' %></p>
-        <p><a href="https://docs.google.com/spreadsheets/d/<%=group.sheetId%>">Sheet</a></p>
+        <p>
+          <a href="https://docs.google.com/spreadsheets/d/<%=group.sheetId%>">Sheet-Link</a>
+          &nbsp;&nbsp;&nbsp;&nbsp;<a href="sheet-export/<%= group.id %>" class="sheet-export">Export</a>
+          <i class="fas fa-spinner fa-spin export-loading"></i>
+          <i class="fas fa-check-circle export-done"></i>
+        </p>
         <div class="members" data-id="<%= group.id %>">
           <% members.forEach(member => { %>
             <div class="card member" data-member-id="<%= member.id %>">
@@ -25,8 +30,12 @@
                   <tr><th>Total</th><th><%= member.memberSum %></th><th></th></tr>
                   <% member.entries.forEach(entry => { %>
                     <tr class="entry" data-uuid="<%=entry.uuid%>">
-                      <td><input type="text" class="description" value="<%= entry.description %>"></td>
+                      <td>
+                        <input type="text" class="description" value="<%= entry.description %>">
+                        <span class="time"><%= entry.time %></span>
+                      </td>
                       <td><input type="number" class="amount" value="<%= entry.amount.toFixed(2) %>"></td>
+
                       <td>
                         <i class="fas fa-save save"></i>
                         <i class="fas fa-trash" onclick="deleteEntry('<%= group.id %>', '<%= entry.uuid %>');"></i>

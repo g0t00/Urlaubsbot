@@ -1,4 +1,5 @@
 const express = require('express');
+const Sheet = require('./sheet');
 
 module.exports = class Web {
   constructor(database) {
@@ -30,6 +31,20 @@ module.exports = class Web {
         return res.redirect('/group/' + groupId);
       }
       res.send('Error while deleting');
+    });
+    router.get('/sheet-export/:groupId', async (req, res) => {
+      const groupId = parseInt(req.params.groupId, 10);
+      const groupObj = database.getGroupById(groupId);
+      if (groupObj === null) {
+        return res.send('Group not found!');
+      }
+      try {
+        await Sheet.export(groupObj);
+        return res.send('ok');
+      } catch (e) {
+        console.error(e);
+        res.status(500).send(e.message);
+      }
     });
     router.post('/new-entry', async (req, res) => {
       let {id, memberId, description = '', amount = ''} = req.body;
