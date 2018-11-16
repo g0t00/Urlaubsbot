@@ -370,6 +370,7 @@ class App {
       // return;
       let done = false;
       let addNumber = '';
+      let message_id: number;
       while (!done) {
         await new Promise(async resolve => {
           console.log(addNumber, 'a');
@@ -401,13 +402,20 @@ class App {
             }
           }]);
           const keyboard = callbackHandler.getKeyboard(buttons);
-          await telegram.sendMessage(chat.id, `Add numbers: current input ${addNumber}`, {
-            reply_markup:
+          if (message_id) {
+            await telegram.editMessageReplyMarkup(chat.id, message_id, undefined, {
+              reply_markup:
+                Markup.inlineKeyboard(keyboard)
+            } as any);
+
+          } else {
+            const resp = await telegram.sendMessage(chat.id, `Add numbers: current input ${addNumber}`, {
+              reply_markup:
               Markup.inlineKeyboard(keyboard)
-            // .oneTime()
-            // .resize()
-            // .extra()
-          });
+            });
+            message_id = resp.message_id;
+
+          }
         });
       }
       reply('Number: ' + addNumber);})();
