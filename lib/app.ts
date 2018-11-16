@@ -21,7 +21,7 @@ class App {
     let webHook = false;
     let port: number;
     process.chdir(__dirname);
-    if (process.env.BOT_ENV === 'MACBOOK') {
+    if (true || process.env.BOT_ENV === 'MACBOOK') {
       port = 61237;
       this.bot = new Telegraf('***REMOVED***');
       this.url = 'http://127.0.0.1:61237/';
@@ -49,6 +49,7 @@ class App {
       this.bot.telegram.setWebhook(this.url + 'AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
     } else {
       console.log('starting Polling');
+      // this.bot.telegram.setWebhook('');
       this.bot.startPolling();
     }
     this.bot.use((addMiddleware as unknown) as Middleware<ContextMessageUpdate>);
