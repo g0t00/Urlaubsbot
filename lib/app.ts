@@ -382,7 +382,7 @@ class App {
                 addNumber += String(number);
                 console.log('added', number);
                 resolve();
-                return true;
+                return false;
               }
             };
           }))
@@ -398,7 +398,7 @@ class App {
             clicked: async () => {
               addNumber = addNumber.substr(0, addNumber.length - 1);
               resolve();
-              return true;
+              return false;
             }
           }]);
           const keyboard = callbackHandler.getKeyboard(buttons);
