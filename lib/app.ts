@@ -26,10 +26,10 @@ class App {
       this.bot = new Telegraf('***REMOVED***');
       this.url = 'http://127.0.0.1:61237/';
     } else {
-      port = 61237;
-      this.bot = new Telegraf('***REMOVED***');
-      this.url = 'https://anton-schulte.de/urlaubsbot/';
-      webHook = true;
+      // port = 61237;
+      // this.bot = new Telegraf('***REMOVED***');
+      // this.url = 'https://anton-schulte.de/urlaubsbot/';
+      // webHook = true;
     }
     this.bot.telegram.getMe().then(botInfo => {
       console.log(botInfo);
