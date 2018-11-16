@@ -403,10 +403,10 @@ class App {
           }]);
           const keyboard = callbackHandler.getKeyboard(buttons);
           if (message_id) {
-            await telegram.editMessageReplyMarkup(chat.id, message_id, undefined, {
-              reply_markup:
-                Markup.inlineKeyboard(keyboard)
-            } as any);
+            // await telegram.editMessageReplyMarkup(chat.id, message_id, undefined, {
+            //   reply_markup:
+            //     Markup.inlineKeyboard(keyboard)
+            // } as any);
 
           } else {
             const resp = await telegram.sendMessage(chat.id, `Add numbers: current input ${addNumber}`, {

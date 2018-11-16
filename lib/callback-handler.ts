@@ -38,6 +38,7 @@ export class CallbackHandler {
       console.log('asd', index, index2);
       const clickHandler = button2d[index][index2].clicked;
       if (ctx.callbackQuery && ctx.callbackQuery.message && await clickHandler()) {
+        console.log('Deleted callback');
         ctx.telegram.deleteMessage(ctx.callbackQuery.message.chat.id, ctx.callbackQuery.message.message_id);
       }
     });
