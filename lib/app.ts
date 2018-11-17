@@ -39,7 +39,8 @@ class App {
     this.express.set('view engine', 'ejs');
     this.express.set('views', '../views');
 
-    this.express.use('/static', express.static('../public'));
+    this.express.use('/client', express.static('../client'));
+    this.express.use('/client/node_modules', express.static('../node_modules'));
 
     this.express.get('/', (_req, res) => {
       res.send('Hello World!');
@@ -192,34 +193,31 @@ class App {
       }
     });
     this.bot.command('groupinfo', async ({ reply, chat, replyWithHTML }) => {
-      console.log('HIHI');
       if (!chat || !chat.id) {
-        console.log('WTF');
         return;
       }
-      console.log('b');
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
       console.log('c');
 
       if (!groupObj) {
         return reply('Not in group / none initialized group');
       }
-      replyWithHTML(`<a href="${this.url}group/${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
+      replyWithHTML(`<a href="${this.url}client/index.html#${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
     });
 
-    this.bot.command('summary', async ({ chat, reply, replyWithHTML }) => {
-      if (!chat || !chat.id) {
-        return;
-      }
-      const groupObj = await GroupModel.findOne({ telegramId: chat.id });
-
-      if (!groupObj) {
-        reply('Not in group / none initialized group');
-        return;
-      }
-
-      replyWithHTML('<code>' + groupObj.getSummaryTable() + '</code>');
-    });
+    // this.bot.command('summary', async ({ chat, reply, replyWithHTML }) => {
+    //   if (!chat || !chat.id) {
+    //     return;
+    //   }
+    //   const groupObj = await GroupModel.findOne({ telegramId: chat.id });
+    //
+    //   if (!groupObj) {
+    //     reply('Not in group / none initialized group');
+    //     return;
+    //   }
+    //
+    //   replyWithHTML('<code>' + groupObj.getSummaryTable() + '</code>');
+    // });
     this.bot.command('setcurrency', async ({ message, reply, chat }) => {
       if (!chat || !chat.id ||  !message ||  !message.text ||  !message.entities) {
         return;
@@ -402,20 +400,20 @@ class App {
             }
           }]);
           const keyboard = callbackHandler.getKeyboard(buttons);
-          if (message_id) {
-            // await telegram.editMessageReplyMarkup(chat.id, message_id, undefined, {
-            //   reply_markup:
-            //     Markup.inlineKeyboard(keyboard)
-            // } as any);
-
-          } else {
+          // if (message_id) {
+          //   // await telegram.editMessageReplyMarkup(chat.id, message_id, undefined, {
+          //   //   reply_markup:
+          //   //     Markup.inlineKeyboard(keyboard)
+          //   // } as any);
+          //
+          // } else {
             const resp = await telegram.sendMessage(chat.id, `Add numbers: current input ${addNumber}`, {
               reply_markup:
               Markup.inlineKeyboard(keyboard)
             });
             message_id = resp.message_id;
 
-          }
+          // }
         });
       }
       reply('Number: ' + addNumber);})();

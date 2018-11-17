@@ -1,0 +1,6 @@
+  .hasToPay .memberAmount {
+    color: red;
+  }
+  .gets .memberAmount {
+    color: green;
+  }

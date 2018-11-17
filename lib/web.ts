@@ -15,20 +15,8 @@ export class Web {
         res.send('not found');
         return;
       }
-      const members = groupObj.getMembersWithSums();
-      const groupAvg = groupObj.getSum() / groupObj.members.length;
-      const membersOutput = (members as any).map((member: any) => {
-        member.toPay = (groupAvg - member.memberSum).toFixed(2);
-      });
-      try {
-        res.render('pages/group', {
-          group: groupObj,
-          members: membersOutput,
-          debugInfo: JSON.stringify(members, null, 2)
-        });
-      } catch (e) {
-        console.error(e);
-      }
+      const evaluation = groupObj.evaluate();
+      res.json(evaluation);
     });
     this.router.get('/delete/:groupId/:entryUuid', async (req, res) => {
       const groupId = parseInt(req.params.groupId, 10);

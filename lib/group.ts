@@ -1,6 +1,6 @@
 // import {Document, Schema, Model, model} from 'mongoose';
-import { prop, Typegoose, InstanceType, instanceMethod, arrayProp } from 'typegoose';
-
+import { prop, Typegoose, InstanceType, instanceMethod, arrayProp, pre } from 'typegoose';
+import { IGroupData } from './interfaces'
 const AsciiTable = require('ascii-table');
 import { v1 as uuid } from 'uuid';
 import * as _ from 'lodash';
@@ -10,6 +10,11 @@ import { app } from './app';
 export interface IMemberWithSum extends Member {
   sum: number;
 }
+
+@pre<Group>('save', function(next) { // or @pre(this: Car, 'save', ...
+this.lastExport = new Date();
+  next();
+})
 export class Group extends Typegoose {
   @prop({ required: true, index: true })
   telegramId: number;
@@ -54,13 +59,49 @@ export class Group extends Typegoose {
     }, 0);
   };
   @instanceMethod
-  getMembersWithSums (this: InstanceType<Group>) {
-    return (this.members as Member[]).map(member => {
-      return {
-        name: member.name,
-        sum: member.entries.reduce((acc, add) => acc + add.amount, 0)
-      };
-    });
+  evaluate(this: InstanceType<Group>): IGroupData {
+    return {
+      name: this.name || '',
+      members: this.members.map(member => {
+        let hasPayed = 0;
+        let toPay = 0;
+        for (const entry of member.entries) {
+          hasPayed += entry.amount;
+        }
+        for (const memberToPay of this.members) {
+          for (const entry of memberToPay.entries) {
+            if (!entry.partialGroupMembers || entry.partialGroupMembers.length === 0) {
+              toPay += entry.amount / this.members.length;
+            } else if (entry.partialGroupMembers.indexOf(member.id) > -1) {
+              toPay += entry.amount / entry.partialGroupMembers.length;
+            }
+          }
+        }
+        const entries = member.entries.map(entry => {
+          const partialGroupMembers = entry.partialGroupMembers ? entry.partialGroupMembers.map(partialGroupMember=> {
+            const member = this.members.find(member => member.id === partialGroupMember);
+            if (member) {
+              return member.name;
+            } else {
+              throw new Error('Invalid Entry');
+            }
+          }) : undefined;
+          return {
+            description: entry.description,
+            amount: entry.amount,
+            time: entry.time,
+            partialGroupMembers}
+            ;
+        })
+        return {
+          id: member.id,
+          name: member.name,
+          hasPayed,
+          toPay,
+          entries: entries
+        };
+      })
+    };
   }
   @instanceMethod
   async deleteEntryByUuid(this: InstanceType<Group>, uuid: string) {
@@ -175,19 +216,19 @@ export class Group extends Typegoose {
     return newEntry;
   }
 
-  @instanceMethod getSummaryTable(this: InstanceType<Group>) {
-    const sum = this.getSum();
-    const avg = sum / (this.members as Member[]).length;
-    const memberSums = this.getMembersWithSums();
-    const table = new AsciiTable();
-    table.addRow('sum', sum, ' ');
-    table.addRow('average', avg, ' ');
-    memberSums.forEach(member => {
-      table.addRow(member.name, member.sum, avg - member.sum);
-    });
-    // Console.log(table.toString());
-    return table.toString();
-  }
+  // @instanceMethod getSummaryTable(this: InstanceType<Group>) {
+  //   const sum = this.getSum();
+  //   const avg = sum / (this.members as Member[]).length;
+  //   const memberSums = this.getMembersWithSums();
+  //   const table = new AsciiTable();
+  //   table.addRow('sum', sum, ' ');
+  //   table.addRow('average', avg, ' ');
+  //   memberSums.forEach(member => {
+  //     table.addRow(member.name, member.sum, avg - member.sum);
+  //   });
+  //   // Console.log(table.toString());
+  //   return table.toString();
+  // }
 
   @instanceMethod getMemberinfo(this: InstanceType<Group>, memberId: number) {
     const member = this.getMemberById(memberId);
@@ -206,14 +247,21 @@ export class Group extends Typegoose {
     const table = new AsciiTable();
 
     member.entries.forEach(entry => {
+      const partialMembers = entry.partialGroupMembers ? entry.partialGroupMembers.map(partialGroupMember => {
+        const member = this.members.find(member => member.id == partialGroupMember);
+        if (member) {
+          return member.name;
+        }
+      }) : [];
       table
-        .addRow(entry.description, entry.amount);
+        .addRow(entry.description, partialMembers.join(','), entry.amount);
     });
     str += table.toString();
     str += '</code>';
     return str;
   }
 }
+
 
 
 
