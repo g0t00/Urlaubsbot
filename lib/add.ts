@@ -63,7 +63,7 @@ async function addOther({message, reply, chat, telegram}: ContextMessageUpdate, 
     return [{
       text: member.name,
       clicked: async () => {
-        await groupObj.addEntry(memberId, description, amount);
+        await groupObj.addEntry(member.id, description, amount);
         return true;
       }
     }];

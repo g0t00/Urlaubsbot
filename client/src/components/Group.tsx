@@ -1,26 +1,24 @@
-import * as React from "react";
 import { IGroupData, IMember, IEntry } from '../../../lib/interfaces'
+import * as React from "react";
 
-import Paper from '@material-ui/core/Paper';
 import Card from '@material-ui/core/Card';
 import CardContent from '@material-ui/core/CardContent';
-// import Grid from '@material-ui/core/Grid';
+import Grid from '@material-ui/core/Grid';
+import Table from '@material-ui/core/Table';
 import TableCell from '@material-ui/core/TableCell';
 import TableRow from '@material-ui/core/TableRow';
 import TableBody from '@material-ui/core/TableBody';
 import Typography from '@material-ui/core/Typography';
-import {
-  SortingState,
-  IntegratedSorting,
-} from '@devexpress/dx-react-grid';
-import { Grid, Table, TableHeaderRow } from '@devexpress/dx-react-grid-material-ui';
-
+import {EntryTable} from './EntryTable';
 
 export enum sortRows {
   description,
   amount,
   time
 };
+export interface IEntryFlat extends IEntry {
+    name: string;
+}
 export type sortDirection = 'asc' | 'desc';
 export class Group extends React.Component<{}, {groupData: IGroupData, direction: sortDirection, sortRow: sortRows}> {
   groupId: string;
@@ -68,45 +66,6 @@ export class Group extends React.Component<{}, {groupData: IGroupData, direction
       });
     }
   }
-  renderEntries () {
-    const entriesFlat: IEntry[] = [];
-    for (const memberEntries of this.state.groupData.members.map(member => member.entries)) {
-      entriesFlat.push(...memberEntries);
-    }
-    this.sort(entriesFlat);
-    return (
-      <Grid
-        rows={[
-          { id: 0, product: 'DevExtreme', owner: 'DevExpress' },
-          { id: 1, product: 'DevExtreme Reactive', owner: 'DevExpress' },
-        ]}
-        columns={[
-          { name: 'id', title: 'ID' },
-          { name: 'product', title: 'Product' },
-          { name: 'owner', title: 'Owner' },
-        ]}>
-        <Table />
-        <TableHeaderRow />
-      </Grid>
-    );
-    return (
-      <Paper>
-        <Grid
-        rows= {entriesFlat}
-        columns={[
-          {name: 'description', title: 'description'},
-          {name: 'for', title: 'for'},
-          {name: 'amount', title: 'amount'},
-          {name: 'entryDate', title: 'entry date'},
-      ]}>
-          <SortingState defaultSorting={[{columnName: 'entryDate', direction: 'asc'}]} />
-          <IntegratedSorting />
-          <Table />
-          <TableHeaderRow showSortingControls />
-        </Grid>
-      </Paper>
-    );
-  }
   renderMember (member: IMember, i: number) {
     return (
         <Card key={i}>
@@ -132,14 +91,22 @@ export class Group extends React.Component<{}, {groupData: IGroupData, direction
     );
   }
   render() {
+    const entriesFlat: IEntryFlat[] = [];
+    for (const member of this.state.groupData.members) {
+      for (const entry of member.entries) {
+        entriesFlat.push({name: member.name, ... entry});
+      }
+    }
+    this.sort(entriesFlat);
     return (
       <div>
         <h1>Group info!</h1>
-        {this.state.groupData.members.map((member, i) => this.renderMember(member, i))}
-
+        {
+          // this.state.groupData.members.map((member, i) => this.renderMember(member, i))
+        }
         <br/>
         <Card>
-          {this.renderEntries()}
+          <EntryTable entries={entriesFlat} />
         </Card>
         <pre>HI{JSON.stringify(this.state.groupData)}</pre>
       </div>
