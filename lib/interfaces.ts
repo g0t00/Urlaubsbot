@@ -1,6 +1,7 @@
 export interface IGroupData {
   members: IMember [];
   name: string;
+  id: number;
 }
 export interface IMember {
   id: number;
@@ -14,4 +15,5 @@ export interface IEntry {
   amount: number;
   partialGroupMembers?: string[];
   time?: Date;
+  uuid: string,
 }

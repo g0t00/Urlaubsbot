@@ -1,4 +1,6 @@
 import { IGroupData, IMember, IEntry } from '../../../lib/interfaces'
+// import deepcopy from "ts-deepcopy";
+
 import * as React from "react";
 
 import Card from '@material-ui/core/Card';
@@ -19,56 +21,47 @@ export enum sortRows {
 export interface IEntryFlat extends IEntry {
     name: string;
 }
-export type sortDirection = 'asc' | 'desc';
-export class Group extends React.Component<{}, {groupData: IGroupData, direction: sortDirection, sortRow: sortRows}> {
+export class Group extends React.Component<{}, {groupData: IGroupData}> {
   groupId: string;
   constructor(props: any) {
     super(props);
-    this.state = {groupData: {name: 'Loading', members: []}, direction: 'asc', sortRow: sortRows.time};
+    this.state = {groupData: {name: 'Loading', members: [], id: 0}};
   }
   async loadData() {
-    const response = await fetch('/group/' + this.groupId);
-    const json = await response.json();
-    for (const member of json.members) {
-      for (const entry of member.entries) {
-        entry.time = new Date(entry.time);
+    let source = new EventSource('/group/' + this.groupId + '/stream');
+    source.onmessage = ({data}) => {
+      const json = JSON.parse(data);
+      for (const member of json.members) {
+        for (const entry of member.entries) {
+          entry.time = new Date(entry.time);
+        }
       }
-    }
-    this.setState({
-      groupData: await json as IGroupData
-    });
-    console.log(this.state.groupData);
+      console.log(json, 'eventsource');
+
+      this.setState({
+        groupData: json
+      })
+    };
+    // const response = await fetch('/group/' + this.groupId);
+    // const json = await response.json();
+    // for (const member of json.members) {
+    //   for (const entry of member.entries) {
+    //     entry.time = new Date(entry.time);
+    //   }
+    // }
+    // this.setState({
+    //   groupData: await json as IGroupData
+    // });
+    // console.log(this.state.groupData);
   }
   componentDidMount () {
     this.groupId = window.location.hash.replace(/^#/, '');
-    console.log(this.groupId, 'groupId');
     this.loadData();
-  }
-  sort(entries: IEntry[]) {
-    if (this.state.sortRow === sortRows.description) {
-      entries.sort((a, b) => a.description.localeCompare(b.description));
-    } else if (this.state.sortRow === sortRows.amount) {
-      entries.sort((a, b) => a.amount - b.amount);
-    } else if (this.state.sortRow === sortRows.time) {
-      entries.sort((a, b) => a.time.getTime() - b.time.getTime());
-    }
-    if (this.state.direction === 'desc') {
-      entries.reverse();
-    }
-  }
-  sortHeaderClicked (row: sortRows) {
-    if (this.state.sortRow === row) {
-      this.setState({direction: this.state.direction === 'asc' ? 'desc' : 'asc' });
-    } else {
-      this.setState({
-        sortRow: row,
-        direction: 'asc'
-      });
-    }
   }
   renderMember (member: IMember, i: number) {
     return (
-        <Card key={i}>
+      <Grid item xs={6} sm={6} md={3}  key={i}>
+        <Card>
           <CardContent>
             <Typography gutterBottom variant="h5" component="h2">
               {member.name}
@@ -88,25 +81,28 @@ export class Group extends React.Component<{}, {groupData: IGroupData, direction
 
           </CardContent>
         </Card>
+      </Grid>
     );
   }
   render() {
+    console.log(this.state);
     const entriesFlat: IEntryFlat[] = [];
     for (const member of this.state.groupData.members) {
       for (const entry of member.entries) {
         entriesFlat.push({name: member.name, ... entry});
       }
     }
-    this.sort(entriesFlat);
     return (
       <div>
-        <h1>Group info!</h1>
+        <h1>Group {this.state.groupData.name}</h1>
+        <Grid container spacing={16}>
         {
-          // this.state.groupData.members.map((member, i) => this.renderMember(member, i))
+          this.state.groupData.members.map((member, i) => this.renderMember(member, i))
         }
+        </Grid>
         <br/>
         <Card>
-          <EntryTable entries={entriesFlat} />
+          <EntryTable entries={entriesFlat} groupData={this.state.groupData} />
         </Card>
         <pre>HI{JSON.stringify(this.state.groupData)}</pre>
       </div>

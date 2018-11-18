@@ -8,12 +8,11 @@ import { callbackHandler, IButton } from './callback-handler';
 connect('mongodb://db:v6RB5Al0M27Z4kH@ds039311.mlab.com:39311/urlaubsbot', { useNewUrlParser: true });
 
 
-import { Web } from './web';
+import { web } from './web';
 import { GroupModel } from './group';
 // import { Sheet } from'./sheet';
 class App {
   express: express.Application;
-  web: Web;
   bot: Telegraf<ContextMessageUpdate>;
 
   url: string;
@@ -60,8 +59,7 @@ class App {
     this.express.use(express.json());
     this.express.use(express.urlencoded({ extended: true }));
     this.express.use('/font-awesome', express.static('./node_modules/@fortawesome/fontawesome-free'));
-    this.web = new Web();
-    this.express.use('/group', this.web.router);
+    this.express.use('/group', web.router);
     // this.bot.use((ctx, next) => {
     //   ctx.groupObj = GroupModel.find({telegramId: ctx.chat.id});
     //   return next(ctx).then(async () => {
@@ -84,6 +82,17 @@ class App {
         reply(`Member ${message.from.first_name} added (id: ${message.from.id})`);
       }
     });
+    this.bot.on('new_chat_title', async ({chat, reply}) => {
+      if (chat && chat.title) {
+        const groupObj = await GroupModel.findOne({ telegramId: chat.id });
+        if (groupObj) {
+          groupObj.name = chat.title;
+          await groupObj.save();
+          await reply(`Changed Group name to ${groupObj.name}`);
+        }
+      }
+      console.log()
+    })
     this.bot.on('new_chat_members', async ({ reply, message, chat }) => {
       if (!chat || !message || !message.from) {
         console.log('WTF');

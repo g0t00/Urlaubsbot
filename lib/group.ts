@@ -1,5 +1,5 @@
 // import {Document, Schema, Model, model} from 'mongoose';
-import { prop, Typegoose, InstanceType, instanceMethod, arrayProp, pre } from 'typegoose';
+import { prop, post, Typegoose, InstanceType, instanceMethod, arrayProp, pre } from 'typegoose';
 import { IGroupData } from './interfaces'
 const AsciiTable = require('ascii-table');
 import { v1 as uuid } from 'uuid';
@@ -7,6 +7,7 @@ import * as _ from 'lodash';
 import { Member } from './member';
 import { Entry } from './entry';
 import { app } from './app';
+import {web} from './web';
 export interface IMemberWithSum extends Member {
   sum: number;
 }
@@ -14,6 +15,9 @@ export interface IMemberWithSum extends Member {
 @pre<Group>('save', function(next) { // or @pre(this: Car, 'save', ...
 this.lastExport = new Date();
   next();
+})
+@post<Group>('save', function (group) {
+  web.emitter.emit(group.id);
 })
 export class Group extends Typegoose {
   @prop({ required: true, index: true })
@@ -61,6 +65,7 @@ export class Group extends Typegoose {
   @instanceMethod
   evaluate(this: InstanceType<Group>): IGroupData {
     return {
+      id: this.id,
       name: this.name || '',
       members: this.members.map(member => {
         let hasPayed = 0;
@@ -90,9 +95,13 @@ export class Group extends Typegoose {
             description: entry.description,
             amount: entry.amount,
             time: entry.time,
+            uuid: entry.uuid,
             partialGroupMembers}
             ;
-        })
+        });
+        hasPayed = parseFloat(hasPayed.toFixed(2));
+        toPay = parseFloat(toPay.toFixed(2));
+
         return {
           id: member.id,
           name: member.name,
@@ -122,6 +131,13 @@ export class Group extends Typegoose {
     }
 
     return false;
+  }
+  @instanceMethod
+  async findEntryByUuid(this: InstanceType<Group>, uuid: string): Promise<Entry|undefined> {
+    for (const member of this.members) {
+        return member.entries.find(entry => entry.uuid === uuid);
+    }
+    return undefined;
   }
   @instanceMethod
   getMemberById(this: InstanceType<Group>, id: number) {
