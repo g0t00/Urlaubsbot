@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc --project .",
+    "build-watch": "tsc -w --project .",
     "test": "xo",
     "run": "",
     "build-client": "webpack client"
@@ -46,6 +47,7 @@
     "mui-datatables": "^2.0.0-beta-39",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
+    "react-telegram-login": "^1.0.3",
     "reflect-metadata": "^0.1.12",
     "telegraf": "^3.25.0",
     "telegraf-session-local": "0.0.5",

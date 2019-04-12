@@ -1,6 +1,7 @@
 import * as EventEmitter from 'events';
 import {ContextMessageUpdate, Markup} from 'telegraf';
 import { v1 as uuid } from 'uuid';
+import {app} from './app';
 export interface IButton {
   text: string;
   clicked: () => Promise<boolean>;
@@ -23,7 +24,7 @@ export class CallbackHandler {
   async handleMessage(ctx: ContextMessageUpdate) {
     // console.log(ctx.update);
     if (ctx.update.message && ctx.update.message.reply_to_message) {
-      this.responseEmitter.emit('response', ctx.update.message.reply_to_message.chat.id, ctx.update.message.reply_to_message.message_id, ctx.update.message.text);
+      this.responseEmitter.emit('response', ctx.update.message.reply_to_message.chat.id, ctx.update.message.reply_to_message.message_id, ctx.update.message.text, ctx.update.message.message_id);
     }
   }
   getKeyboard(button2d: IButton[][]) {
@@ -46,9 +47,10 @@ export class CallbackHandler {
   }
   async getReply(chatId: number, message_id: number): Promise<string> {
     return new Promise(resolve => {
-      this.responseEmitter.on('response', (_chatId: number, _message_id: number, text: string) => {
+      this.responseEmitter.on('response', async (_chatId: number, _message_id: number, text: string, responseMessageId: number) => {
         console.log('response Emit', _chatId, chatId, _message_id, message_id, text)
         if (chatId === _chatId && message_id === _message_id) {
+          app.bot.telegram.deleteMessage(chatId, responseMessageId);
           resolve(text);
         }
       })

@@ -8,6 +8,7 @@ import { Member } from './member';
 import { Entry } from './entry';
 import { app } from './app';
 import {web} from './web';
+import {roundToCent} from './util';
 export interface IMemberWithSum extends Member {
   sum: number;
 }
@@ -45,14 +46,17 @@ export class Group extends Typegoose {
   };
   @instanceMethod
   renderEntry(this: InstanceType<Group>, entry: Entry): string {
-    let text = entry.description + ': ' + entry.amount;
-    if (entry.partialGroupMembers) {
-      text += 'Members having to pay for this: ' + entry.partialGroupMembers.map(memberId => {
+    let text = entry.description + ': ' + entry.amount + ' ';
+    text += 'Members having to pay for this: ';
+    if (entry.partialGroupMembers && entry.partialGroupMembers.length > 0) {
+       text += entry.partialGroupMembers.map(memberId => {
         const member = this.members.find(member => member.id === memberId);
         if (member) {
           return member.name;
         }
       }).join(', ');
+    } else {
+      text += 'all';
     }
     return text;
   }
@@ -83,14 +87,7 @@ export class Group extends Typegoose {
           }
         }
         const entries = member.entries.map(entry => {
-          const partialGroupMembers = entry.partialGroupMembers ? entry.partialGroupMembers.map(partialGroupMember=> {
-            const member = this.members.find(member => member.id === partialGroupMember);
-            if (member) {
-              return member.name;
-            } else {
-              throw new Error('Invalid Entry');
-            }
-          }) : undefined;
+          const partialGroupMembers = entry.partialGroupMembers ? entry.partialGroupMembers : [];
           return {
             description: entry.description,
             amount: entry.amount,
@@ -99,8 +96,10 @@ export class Group extends Typegoose {
             partialGroupMembers}
             ;
         });
-        hasPayed = parseFloat(hasPayed.toFixed(2));
-        toPay = parseFloat(toPay.toFixed(2));
+        const round = (num: number) =>  Math.sign(num) * Math.round(Math.abs(num));
+
+        // hasPayed = round(hasPayed * 100) / 100;
+        // toPay = round(toPay * 100) / 100;
 
         return {
           id: member.id,
@@ -135,7 +134,10 @@ export class Group extends Typegoose {
   @instanceMethod
   async findEntryByUuid(this: InstanceType<Group>, uuid: string): Promise<Entry|undefined> {
     for (const member of this.members) {
-        return member.entries.find(entry => entry.uuid === uuid);
+      const entry = member.entries.find(entry => entry.uuid === uuid);
+        if (entry) {
+          return entry;
+        }
     }
     return undefined;
   }
@@ -161,7 +163,7 @@ export class Group extends Typegoose {
     this.members.push(member);
     await this.save();
     try {
-      await app.bot.telegram.sendMessage(this.telegramId, `Member ${name} added (id: ${id}`);
+      await app.bot.telegram.sendMessage(this.telegramId, `Member ${name} added (id: ${id})`);
     } catch(e) {
       console.error('WTF', e);
     }
@@ -232,22 +234,21 @@ export class Group extends Typegoose {
     return newEntry;
   }
 
-  // @instanceMethod getSummaryTable(this: InstanceType<Group>) {
-  //   const sum = this.getSum();
-  //   const avg = sum / (this.members as Member[]).length;
-  //   const memberSums = this.getMembersWithSums();
-  //   const table = new AsciiTable();
-  //   table.addRow('sum', sum, ' ');
-  //   table.addRow('average', avg, ' ');
-  //   memberSums.forEach(member => {
-  //     table.addRow(member.name, member.sum, avg - member.sum);
-  //   });
-  //   // Console.log(table.toString());
-  //   return table.toString();
-  // }
+  @instanceMethod getSummaryTable(this: InstanceType<Group>) {
+    const evaluation = this.evaluate();
+    const table = new AsciiTable();
+    table.addRow('name', 'has payed', 'has to pay', 'still open')
+    evaluation.members.forEach(member => {
+      table.addRow(member.name, roundToCent(member.hasPayed), roundToCent(member.toPay), roundToCent(member.toPay - member.hasPayed));
+    });
+    // Console.log(table.toString());
+    return table.toString();
+  }
 
   @instanceMethod getMemberinfo(this: InstanceType<Group>, memberId: number) {
-    const member = this.getMemberById(memberId);
+    const evaluation = this.evaluate();
+
+    const member = evaluation.members.find(member => member.id === memberId);
     if (!member) {
       return 'No Info found!';
     }
@@ -258,7 +259,7 @@ export class Group extends Typegoose {
     const avg = sum / (this.members as Member[]).length;
 
     let str = `${member.name} (${member.id})\n` +
-      `member sum: ${memberSum}\ngroup average: ${avg}.\n`;
+      `has payed: ${roundToCent(member.hasPayed)}, has to pay: ${roundToCent(member.toPay)}, still open: ${roundToCent(member.toPay - member.hasPayed)}.\n`;
     str += '<code>';
     const table = new AsciiTable();
 

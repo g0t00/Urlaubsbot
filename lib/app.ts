@@ -20,15 +20,15 @@ class App {
     let webHook = false;
     let port: number;
     process.chdir(__dirname);
-    if (true || process.env.BOT_ENV === 'MACBOOK') {
+    if (process.env.BOT_ENV === 'MACBOOK') {
       port = 61237;
       this.bot = new Telegraf('***REMOVED***');
       this.url = 'http://127.0.0.1:61237/';
     } else {
-      // port = 61237;
-      // this.bot = new Telegraf('***REMOVED***');
-      // this.url = 'https://anton-schulte.de/urlaubsbot/';
-      // webHook = true;
+      port = 61239;
+      this.bot = new Telegraf('***REMOVED***');
+      this.url = 'https://anton-schulte.de/urlaub2/';
+      webHook = true;
     }
     this.bot.telegram.getMe().then(botInfo => {
       console.log(botInfo);
@@ -47,6 +47,7 @@ class App {
     if (webHook) {
       this.express.use(this.bot.webhookCallback('/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4'));
       this.bot.telegram.setWebhook(this.url + 'AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
+      this.bot.telegram.webhookReply = false
     } else {
       console.log('starting Polling');
       // this.bot.telegram.setWebhook('');
@@ -66,21 +67,47 @@ class App {
     //     await ctx.groupObj.save();
     //   });
     // });
+    this.bot.on('message', async ({ chat, reply, message }, next) => {
+        // reply('message');
+        if (!chat || !chat.id || !message || !message.from) {
+          reply('WTF');
+          return;
+        }
+        const from = message.from;
+        let groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
+        if (!groupObj) {
+          groupObj = new GroupModel();
+          groupObj.name = chat.title || '';
+          groupObj.telegramId = chat.id;
+          await groupObj.save();
+        }
+        if (!groupObj.members.find(member => member.id === from.id)) {
+          await groupObj.addMember(message.from.first_name, message.from.id)
+        }
+
+      if (next) {
+        next();
+      }
+    });
     this.bot.on('group_chat_created', async ({ reply, chat, message }) => {
       if (!chat || !message || !message.from) {
         return;
       }
-      const group = new GroupModel();
-      group.name = chat.title ||  '';
-      group.telegramId = chat.id;
-      await group.save();
-      reply('Neue Gruppe angelegt: ' + group.name);
+      let groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
-
-      if (await group.addMember(message.from.first_name, message.from.id)) {
-        reply(`Member ${message.from.first_name} added (id: ${message.from.id})`);
+      if (!groupObj) {
+        groupObj = new GroupModel();
+        groupObj.name = chat.title || '';
+        groupObj.telegramId = chat.id;
+        await groupObj.save();
+        reply('Neue Gruppe angelegt: ' + groupObj.name);
       }
+      for (const member of (message.new_chat_members || [])) {
+        groupObj.addMember(member.first_name, member.id);
+      }
+
+      groupObj.addMember(message.from.first_name, message.from.id);
     });
     this.bot.on('new_chat_title', async ({chat, reply}) => {
       if (chat && chat.title) {
@@ -104,10 +131,9 @@ class App {
         reply('Not in group / none initialized group');
         return;
       }
-      if (groupObj.addMember(message.from.first_name, message.from.id)) {
-        reply(`Member ${message.from.first_name} added (id: ${message.from.id})`);
-      } else {
-        reply('You are already in group!');
+      // reply(JSON.stringify(message.new_chat_members));
+      for (const member of (message.new_chat_members || [])) {
+        groupObj.addMember(member.first_name, member.id);
       }
     });
     this.bot.command('initializegroup', async ctx => {
@@ -158,17 +184,30 @@ class App {
         ctx.reply('Not in group / none initialized group');
       }
     });
+    this.bot.command('test', async({message, reply}) => {
+      if (!message || !message.text) {
+        return;
+      }
+      for (const entity of (message.entities || [])) {
+        if (entity.type === 'mention') {
+          reply(message.text.substr(entity.offset, entity.length));
+        }
+      }
+      console.log(message.entities);
+      reply(JSON.stringify(message));
+    });
+
     this.bot.command('newmember', async ({ chat, reply, message }) => {
       if (!chat || !chat.id || !message || !message.from) {
         return reply('nope');
       }
-      console.log(chat)
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
       if (!groupObj) {
         reply('Not in group / none initialized group');
         return;
       }
+      console.log(message.entities);
       if (!await groupObj.addMember(message.from.first_name, message.from.id)) {
         reply('You are already in group!');
       }
@@ -214,19 +253,19 @@ class App {
       replyWithHTML(`<a href="${this.url}client/index.html#${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
     });
 
-    // this.bot.command('summary', async ({ chat, reply, replyWithHTML }) => {
-    //   if (!chat || !chat.id) {
-    //     return;
-    //   }
-    //   const groupObj = await GroupModel.findOne({ telegramId: chat.id });
-    //
-    //   if (!groupObj) {
-    //     reply('Not in group / none initialized group');
-    //     return;
-    //   }
-    //
-    //   replyWithHTML('<code>' + groupObj.getSummaryTable() + '</code>');
-    // });
+    this.bot.command('summary', async ({ chat, reply, replyWithHTML }) => {
+      if (!chat || !chat.id) {
+        return;
+      }
+      const groupObj = await GroupModel.findOne({ telegramId: chat.id });
+
+      if (!groupObj) {
+        reply('Not in group / none initialized group');
+        return;
+      }
+
+      replyWithHTML('<code>' + groupObj.getSummaryTable() + '</code>');
+    });
     this.bot.command('setcurrency', async ({ message, reply, chat }) => {
       if (!chat || !chat.id ||  !message ||  !message.text ||  !message.entities) {
         return;
@@ -501,7 +540,11 @@ class App {
     /add - Adds amount. Please only input one number after, because it will be used as amount.
     /addforeign - Adds amount in foreign currency. Will be divided by currency value. Orginal amount will be discarded.
     /addother - Adds amount to different member.
-    /addotherforeign - Adds amount to different member in foreign currency.`;
+    /addotherforeign - Adds amount to different member in foreign currency.
+    /addpartial - Add amount only to certain group members
+    /remove - Remove Entry
+    /editamount - Edit Amount of entry
+    /editdescription - Edit Description of entry`;
         reply(str);
       });
     }

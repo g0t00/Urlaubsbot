@@ -9,8 +9,10 @@ export class Entry extends Typegoose {
   @prop()
   time?: Date;
   @arrayProp({
-    items: Number
+    items: Number,
+    default: [],
+    required: true
   })
-  partialGroupMembers?: number[];
+  partialGroupMembers: number[];
 
 }

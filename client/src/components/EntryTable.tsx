@@ -24,7 +24,11 @@ import MenuItem from '@material-ui/core/MenuItem';
 import FormControl from '@material-ui/core/FormControl';
 import InputLabel from '@material-ui/core/InputLabel';
 import Chip from '@material-ui/core/Chip';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+import Checkbox from '@material-ui/core/Checkbox';
+import FormGroup from '@material-ui/core/FormGroup';
 
+import {API_BASE} from '../api';
 export interface IEntryTableProps {
   entries: IEntryFlat[];
   groupData: IGroupData;
@@ -39,12 +43,7 @@ const DateTypeProvider: React.ComponentType<DataTypeProviderProps>  = (props: Da
     {...props}
   />
 );
-const PartialGroupFormatter: React.ComponentType<DataTypeProvider.ValueFormatterProps> = ({value}:  {value: string[]}) => {
-  if (value.length === 0) {
-    return <span>All</span>;
-  }
-  return <span>{value.join(', ')}</span>;
-}
+
 
 
 const NumberEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange }) => (
@@ -75,6 +74,7 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
     this.payerEditor = this.payerEditor.bind(this);
     this.payerTypeProvider = this.payerTypeProvider.bind(this);
     this.partialGroupEditor = this.partialGroupEditor.bind(this);
+    this.partialGroupFormatter = this.partialGroupFormatter.bind(this);
 
   }
   async commitChanges({ added, changed, deleted }: ChangeSet) {
@@ -88,17 +88,18 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
     }
     if (added) {
       for (const add of added) {
+
         const amount = parseFloat(add.amount);
         if (add.name !== '' && Number.isFinite(amount)) {
           const member = this.props.groupData.members.find(member => member.name === add.name);
 
           const body = {
-            groupId: this.props.groupData.id,
             memberId: member.id,
             description: add.description,
+            partialGroupMembers: add.partialGroupMembers,
             amount
           };
-          await fetch('/group/new-entry', {
+          await fetch(API_BASE + '/' + this.props.groupData.id, {
             method: 'POST',
             headers: {
               "Content-Type": "application/json; charset=utf-8",
@@ -114,7 +115,7 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
     if (changed) {
       for (const uuid of Object.keys(changed)) {
         const changes = changed[uuid];
-        await fetch('/group/' + String(this.props.groupData.id) + '/' + uuid, {
+        await fetch(API_BASE + '/' + String(this.props.groupData.id) + '/' + uuid, {
           method: 'PUT',
           headers: {
             "Content-Type": "application/json; charset=utf-8",
@@ -129,18 +130,21 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
   payerEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange }) => {
     console.log(this, 'propsB');
     return (
-      <Select
-      input={<Input />}
-      value={value}
-      onChange={event => onValueChange(event.target.value)}
-      style={{ width: '100%' }}
-      >
-      {this.props.groupData.members.map(member => (
-        <MenuItem value={member.name} key={member.id}>
-          {member.name}
-        </MenuItem>
-      ))}
-      </Select>
+      <div>
+
+        <Select
+        input={<Input />}
+        value={value}
+        onChange={event => onValueChange(event.target.value)}
+        style={{ width: '100%' }}
+        >
+        {this.props.groupData.members.map(member => (
+          <MenuItem value={member.name} key={member.id}>
+            {member.name}
+          </MenuItem>
+        ))}
+        </Select>
+      </div>
     )};
   payerTypeProvider: React.ComponentType<DataTypeProviderProps> = props => {
     console.log(this, 'propsA');
@@ -150,40 +154,61 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
       {...props}
       />
     )};
-    partialGroupEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange }) => (
-      <FormControl>
-      <Select
-        multiple
-        value={value}
-        onChange={event => onValueChange(event.target.value)}
-        input={<Input id="select-multiple-chip" />}
-        renderValue={(selected: number[]) => (
-          <div>
-            {selected.map((value: number) => (
-              <Chip key={value} label={value} />
-            ))}
-          </div>
-        )}
-        style={{ width: '100%' }}
+    partialGroupFormatter: React.ComponentType<DataTypeProvider.ValueFormatterProps> = ({value}:  {value: number[]}) => {
+      if (value.length === 0) {
+        return <span>All</span>;
+      }
 
-      >
-        {this.props.groupData.members.map(member => (
-          <MenuItem key={member.name} value={member.name}>
-            {member.name}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+      return <span>{value.map(partialGroupMemberId => this.props.groupData.members.find(member => member.id === partialGroupMemberId).name).join(', ')}</span>;
+    }
+    partialGroupEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange }) => (
+      <FormGroup>
+        <FormControlLabel
+            control={
+              <Checkbox
+                checked={!value || value.length === 0}
+                onChange={event => event.target.value && onValueChange([])}
+                value="checkedB"
+                color="primary"
+              />
+            }
+            label="All"
+          />
+        <FormControl>
+        <Select
+          multiple
+          value={value || []}
+          onChange={event => onValueChange(event.target.value)}
+          input={<Input id="select-multiple-chip" />}
+          renderValue={(selected: number[]) => (
+            <div>
+              {selected.map((value: number) => {
+                const name = this.props.groupData.members.find(member => member.id === value).name;
+                return <Chip key={value} label={name} />
+              })}
+            </div>
+          )}
+          style={{ width: '100%' }}
+
+        >
+          {this.props.groupData.members.map(member => (
+            <MenuItem key={member.id} value={member.id}>
+              {member.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    </FormGroup>
   );
   partialGroupProvider: React.ComponentType<DataTypeProviderProps>  = (props: DataTypeProviderProps) => (
     <DataTypeProvider
-      formatterComponent={PartialGroupFormatter}
+      formatterComponent={this.partialGroupFormatter}
       editorComponent={this.partialGroupEditor}
       {...props}
     />
   );
   async deleteEntry() {
-    await fetch(`/group/delete/${this.props.groupData.id}/${this.state.deleteDialogEntry.uuid}`, {
+    await fetch(API_BASE + `/delete/${this.props.groupData.id}/${this.state.deleteDialogEntry.uuid}`, {
     });
     console.log(this.state.deleteDialogEntry);
     this.setState({deleteDialogOpen: false});

@@ -13,7 +13,7 @@ export interface IMember {
 export interface IEntry {
   description: string;
   amount: number;
-  partialGroupMembers?: string[];
+  partialGroupMembers?: number[];
   time?: Date;
   uuid: string,
 }

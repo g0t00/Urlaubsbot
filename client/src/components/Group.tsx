@@ -1,4 +1,5 @@
 import { IGroupData, IMember, IEntry } from '../../../lib/interfaces'
+import {roundToCent} from '../../../lib/util';
 // import deepcopy from "ts-deepcopy";
 
 import * as React from "react";
@@ -12,7 +13,7 @@ import TableRow from '@material-ui/core/TableRow';
 import TableBody from '@material-ui/core/TableBody';
 import Typography from '@material-ui/core/Typography';
 import {EntryTable} from './EntryTable';
-
+import {API_BASE} from '../api';
 export enum sortRows {
   description,
   amount,
@@ -25,10 +26,10 @@ export class Group extends React.Component<{}, {groupData: IGroupData}> {
   groupId: string;
   constructor(props: any) {
     super(props);
-    this.state = {groupData: {name: 'Loading', members: [], id: 0}};
+    this.state = {groupData: {name: 'Loading. Are you logged in?', members: [], id: 0}};
   }
   async loadData() {
-    let source = new EventSource('/group/' + this.groupId + '/stream');
+    let source = new EventSource(API_BASE + '/' + this.groupId + '/stream?auth=' + localStorage.getItem('user'));
     source.onmessage = ({data}) => {
       const json = JSON.parse(data);
       for (const member of json.members) {
@@ -42,6 +43,9 @@ export class Group extends React.Component<{}, {groupData: IGroupData}> {
         groupData: json
       })
     };
+    source.onerror = (evt) => {
+      console.log(evt, 'event');
+    }
     // const response = await fetch('/group/' + this.groupId);
     // const json = await response.json();
     // for (const member of json.members) {
@@ -60,7 +64,7 @@ export class Group extends React.Component<{}, {groupData: IGroupData}> {
   }
   renderMember (member: IMember, i: number) {
     return (
-      <Grid item xs={6} sm={6} md={3}  key={i}>
+      <Grid item xs={12} sm={6} md={3}  key={i}>
         <Card>
           <CardContent>
             <Typography gutterBottom variant="h5" component="h2">
@@ -68,14 +72,14 @@ export class Group extends React.Component<{}, {groupData: IGroupData}> {
             </Typography>
             <Table><TableBody>
             <TableRow>
-              <TableCell>Has Payed: </TableCell><TableCell>{member.hasPayed}</TableCell>
+              <TableCell>Has Payed: </TableCell><TableCell>{roundToCent(member.hasPayed)}</TableCell>
             </TableRow>
             <TableRow>
-              <TableCell>Has to Payed: </TableCell><TableCell>{member.toPay}</TableCell>
+              <TableCell>Has to Payed: </TableCell><TableCell>{roundToCent(member.toPay)}</TableCell>
             </TableRow>
             <TableRow className={member.toPay - member.hasPayed > 0 ? 'hasToPay' : 'gets'}>
               <TableCell>{member.toPay - member.hasPayed > 0 ? `Has still to Pay` : 'Gets: '}</TableCell>
-              <TableCell className='memberAmount' >{Math.abs(member.toPay - member.hasPayed)}</TableCell>
+              <TableCell className='memberAmount' >{Math.abs(roundToCent(member.toPay - member.hasPayed))}</TableCell>
               </TableRow>
             </TableBody></Table>
 
@@ -92,6 +96,7 @@ export class Group extends React.Component<{}, {groupData: IGroupData}> {
         entriesFlat.push({name: member.name, ... entry});
       }
     }
+    // <pre>HI{JSON.stringify(this.state.groupData)}</pre>
     return (
       <div>
         <h1>Group {this.state.groupData.name}</h1>
@@ -104,7 +109,6 @@ export class Group extends React.Component<{}, {groupData: IGroupData}> {
         <Card>
           <EntryTable entries={entriesFlat} groupData={this.state.groupData} />
         </Card>
-        <pre>HI{JSON.stringify(this.state.groupData)}</pre>
       </div>
     );
   }

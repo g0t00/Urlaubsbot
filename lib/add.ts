@@ -23,7 +23,7 @@ addMiddleware.command('addother', ctx => {
 addMiddleware.command('addotherforeign', ctx => {
   addOther(ctx, true);
 });
-
+const selective = false;
 async function addOther({message, reply, chat, telegram}: ContextMessageUpdate, useForeign: boolean) {
   if (!chat || !message || !message.text || !message.entities || !message.from) {
     return;
@@ -37,11 +37,12 @@ async function addOther({message, reply, chat, telegram}: ContextMessageUpdate, 
   const messageText = message.text.substr(message.entities[0].length + 1);
   let matches = messageText.match(/\d+[.,]?\d*/);
   while (!matches) {
-    const replyObj = await reply('No Amount found! Reply With Amount please.', {
+    const replyObj = await reply(`No Amount found! Reply With Amount please.@${message.from.username}`, {
       reply_markup: {force_reply: true, selective: true}
     });
     let amount = await callbackHandler.getReply(chat.id, replyObj.message_id);
     matches = amount.match(/\d+[.,]?\d*/);
+    app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
   }
   let amount = parseFloat(matches[0].replace(',', '.'));
   if (isNaN(amount)) {
@@ -79,7 +80,7 @@ async function addOther({message, reply, chat, telegram}: ContextMessageUpdate, 
     .inlineKeyboard(keyboard)
   });
 };
-async function add({reply, chat, message}: ContextMessageUpdate, useForeign: boolean) {
+async function add({reply, chat, message, replyWithMarkdown}: ContextMessageUpdate, useForeign: boolean) {
   if (!chat || !message || !message.from || !message.entities) {
     return reply('nope');
   }
@@ -104,29 +105,35 @@ async function add({reply, chat, message}: ContextMessageUpdate, useForeign: boo
   if (message.text) {
     messageText = message.text.substr(message.entities[0].length + 1);
   }
+  // app.bot.telegram.deleteMessage(chat.id, message.message_id);
   if (!message.text || messageText == '') {
-    let replyObj = await reply('Please enter description.', {
+    let replyObj = await reply(`Please enter description. @${message.from.username}`, {
       reply_markup: {force_reply: true, selective: true}
     });
     description = await callbackHandler.getReply(chat.id, replyObj.message_id);
-    replyObj = await reply('Please enter amount.', {
+    await app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
+    replyObj = await reply(`Please enter amount. @${message.from.username}`, {
       reply_markup: {force_reply: true, selective: true}
     });
 
     let amountText = await callbackHandler.getReply(chat.id, replyObj.message_id);
     amount = parseFloat(amountText.replace(',', '.'));
+    app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
+
     while (!Number.isFinite(amount)) {
-      const replyObj = await reply('Could not parse amount. Please enter valid amount!', {
+      const replyObj = await reply(`Could not parse amount. Please enter valid amount! @${message.from.username}`, {
         reply_markup: {force_reply: true, selective: true}
       });
+
       amountText = await callbackHandler.getReply(chat.id, replyObj.message_id);
       amount = parseFloat(amountText.replace(',', '.'));
+      app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
     }
   } else {
     messageText = message.text.substr(message.entities[0].length + 1);
     let matches = messageText.match(/\d+[.,]?\d*/);
     while (!matches) {
-      const replyObj = await reply('No Amount found! Reply With Amount please.', {
+      const replyObj = await reply(`No Amount found! Reply With Amount please.@${message.from.username}`, {
         reply_markup: {force_reply: true, selective: true}
       });
       let amountText = await callbackHandler.getReply(chat.id, replyObj.message_id);
@@ -179,29 +186,38 @@ async function addPartial({reply, chat, message, telegram}: ContextMessageUpdate
   if (message.text) {
     messageText = message.text.substr(message.entities[0].length + 1);
   }
+  // app.bot.telegram.deleteMessage(chat.id, message.message_id);
+
   if (!message.text || messageText == '') {
-    let replyObj = await reply('Please enter description.', {
+    let replyObj = await reply(`Please enter description.@${message.from.username}`, {
       reply_markup: {force_reply: true, selective: true}
     });
+
     description = await callbackHandler.getReply(chat.id, replyObj.message_id);
-    replyObj = await reply('Please enter amount.', {
+    app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
+
+    replyObj = await reply(`Please enter amount.@${message.from.username}`, {
       reply_markup: {force_reply: true, selective: true}
     });
 
     let amountText = await callbackHandler.getReply(chat.id, replyObj.message_id);
     amount = parseFloat(amountText.replace(',', '.'));
+    app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
+
     while (!Number.isFinite(amount)) {
       const replyObj = await reply('Could not parse amount. Please enter valid amount!', {
         reply_markup: {force_reply: true, selective: true}
       });
       amountText = await callbackHandler.getReply(chat.id, replyObj.message_id);
       amount = parseFloat(amountText.replace(',', '.'));
+      app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
+
     }
   } else {
     messageText = message.text.substr(message.entities[0].length + 1);
     let matches = messageText.match(/\d+[.,]?\d*/);
     while (!matches) {
-      const replyObj = await reply('No Amount found! Reply With Amount please.', {
+      const replyObj = await reply(`No Amount found! Reply With Amount please. @${message.from.username}`, {
         reply_markup: {force_reply: true, selective: true}
       });
       let amountText = await callbackHandler.getReply(chat.id, replyObj.message_id);

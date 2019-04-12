@@ -1,15 +1,61 @@
-const crypto = require('crypto');
+import {createHash, createHmac} from 'crypto';
 import * as express from 'express';
 import { app } from './app';
 import { GroupModel } from './group';
 import * as EventEmitter from 'events';
-
+import {Entry} from './entry';
 export class Web {
   router: express.Router;
   emitter = new EventEmitter();
+  async authorize(req: any, res: any, next: () => void) {
+    let user: any;
+    try {
+      user = JSON.parse(req.get('Auth') || req.query.auth);
+
+    } catch(e) {
+      res.send('no login found');
+      console.log('no login found');
+
+      return res.status(403).end();
+    }
+    if (!user) {
+      console.log('no login found');
+
+      return res.sendStatus(403).end();
+    }
+    const authData: any[] = [];
+    const {hash, ...data} = user;
+    const checkString = Object.keys(data)
+    .sort()
+    .map(k => `${k}=${data[k]}`)
+    .join('\n')
+
+    const token = (app.bot.telegram as any).token;
+    const secret = createHash('sha256')
+    .update(token)
+    .digest();
+    const hmac = createHmac('sha256', secret)
+    .update(checkString);
+    const hashCompare = hmac.digest('hex');
+    // console.log((app.bot.telegram as any).token);
+    // console.log(checkString);
+    // console.log(hash, hashCompare);
+    if (hash !== hashCompare) {
+      res.send('wrong login');
+      return res.status(403).end();
+    }
+    const id = req.params.id;
+    const groupObj = await GroupModel.findById(id).exec();
+    if (!groupObj || !groupObj.members.find(member => member.id === data.id)) {
+      console.log(id, req.params);
+      res.send('user not in group');
+      return res.status(403).end();
+    }
+    next();
+  }
   constructor() {
-    this.router = express.Router(); // eslint-disable-line new-cap
-    this.router.get('/:id/stream', async (req, res) => {
+    this.router = express.Router();
+    this.router.get('/:id/stream', this.authorize, async (req, res) => {
       const id = req.params.id;
       const groupObj = await GroupModel.findById(id).exec();
       if (!groupObj) {
@@ -34,12 +80,12 @@ export class Web {
      };
      this.emitter.on(id, handler);
      setTimeout(() => {
-       this.emitter.off(id, handler);
+       this.emitter.removeListener(id, handler);
        res.end();
      }, 60000);
     });
 
-    this.router.get('/:id', async (req, res) => {
+    this.router.get('/:id', this.authorize, async (req, res) => {
       const id = req.params.id;
       console.log(id);
       const groupObj = await GroupModel.findById(id).exec();
@@ -51,22 +97,26 @@ export class Web {
       const evaluation = groupObj.evaluate();
       res.json(evaluation);
     });
-    this.router.put('/:id/:entryUuid', async (req, res) => {
+    this.router.put('/:id/:entryUuid', this.authorize, async (req, res) => {
       console.log(req.body);
       const id = req.params.id;
       console.log(id);
       const groupObj = await GroupModel.findById(id).exec();
       if (!groupObj) {
         res.status(404);
-        res.send('not found');
+        res.send('did not find group ' + id);
         return;
       }
       const entry: any = await groupObj.findEntryByUuid(req.params.entryUuid);
+
       if (!entry) {
         res.status(404);
-        res.json(false);
+        res.send('did not find entry ' + req.params.entryUuid);
         return;
       }
+      const oldEntry: any = {description: entry.description, amount: entry.amount, partialGroupMembers: entry.partialGroupMembers};
+      const oldOwner = groupObj.members.find(member => typeof member.entries.find(entrySearch => entrySearch.uuid === entry.uuid) !== 'undefined');
+      // const oldEntry: any = {descrip...entry};
       for (const key of Object.keys(req.body)) {
         if (key === 'name') {
           const targetMember = groupObj.members.find(member => member.name === req.body[key]);
@@ -77,22 +127,28 @@ export class Web {
               targetMember.entries.push(entry);
             }
           }
-        } else if (key === 'partialGroupMembers') {
-          const partialGroupMembers = [];
-          for (const name of req.body[key]) {
-            for (const member of groupObj.members) {
-              if (member.name === name) {
-                partialGroupMembers.push(member.id);
-              }
-            }
-          }
-          entry.partialGroupMembers = partialGroupMembers;
-        } else {
+        }  else {
           entry[key] = req.body[key];
         }
       }
       try {
         await groupObj.save();
+        const parseEntry = (entry: Entry) => {
+          const partialGroupNames = [];
+          for (const partialGroupMember of (entry.partialGroupMembers || [])) {
+            const member = groupObj.members.find(member => member.id == partialGroupMember);
+            if (member) {
+              partialGroupNames.push(member.name);
+            } else {
+              partialGroupNames.push('???');
+            }
+          }
+          return `${entry.description} ${entry.amount} ${(entry.partialGroupMembers && entry.partialGroupMembers.length > 0) ? partialGroupNames.join(',') : 'all'}`;
+        }
+        const newOwner = groupObj.members.find(member => typeof member.entries.find(entrySearch => entrySearch.uuid === entry.uuid) !== 'undefined');
+
+        await app.bot.telegram.sendMessage(groupObj.telegramId, `Changed Entry: ${oldOwner && oldOwner.name}: (${parseEntry(oldEntry)}) -> ${newOwner && newOwner.name}: (${parseEntry(entry)})`);
+
         return res.json(true);
       } catch(e) {
         console.error(e);
@@ -100,13 +156,24 @@ export class Web {
         return res.json(false);
       }
     });
-    this.router.get('/delete/:groupId/:entryUuid', async (req, res) => {
+    this.router.delete('/:groupId/:entryUuid', this.authorize, async (req, res) => {
       const groupId = req.params.groupId;
       const groupObj = await GroupModel.findById(groupId);
       if (!groupObj) {
         return res.send('GroupModel not found!');
       }
       if (await groupObj.deleteEntryByUuid(req.params.entryUuid)) {
+        const parseEntry = (entry: Entry) => {
+          const partialGroupNames = [];
+          for (const partialGroupMember of (entry.partialGroupMembers || [])) {
+            const member = groupObj.members.find(member => member.id == partialGroupMember);
+            if (member) {
+              partialGroupNames.push(member.name);
+            } else {
+              partialGroupNames.push('???');
+            }
+          }
+        }
         return res.json(true);
       }
       res.send('Error while deleting');
@@ -125,8 +192,9 @@ export class Web {
     //     res.status(500).send(e.message);
     //   }
     // });
-    this.router.post('/new-entry', async (req, res) => {
-      let {groupId, memberId, description = '', amount = ''} = req.body;
+    this.router.post('/:id', this.authorize, async (req, res) => {
+      const groupId = req.params.id;
+      let {memberId, description = '', amount = '', partialGroupMembers = []} = req.body;
       if (typeof amount === 'string') {
         amount = parseFloat(amount.replace(',', '.'));
 
@@ -136,43 +204,18 @@ export class Web {
       }
       const groupObj = await GroupModel.findById(groupId);
       if (groupObj === null) {
+        res.status(500);
         return res.send('GroupModel not found/no GroupModel ID transmitted!');
       }
-      if (isNaN(amount)) {
+      if (!Number.isFinite(amount)) {
+        res.status(500);
         return res.send('Invalid amount tramsitted!');
       }
-      if (await groupObj.addEntry(memberId, description, amount)) {
-        console.log('saved');
-        return res.redirect('/group/' + groupId);
+      if (await groupObj.addEntry(memberId, description, amount, partialGroupMembers)) {
+        res.status(200);
+        return res.json(true);
       }
       res.send('Error while adding');
-    });
-    this.router.post('/edit', async (req, res) => {
-      let {id, memberId, uuid, description, amount, user} = req.body;
-      const chat = await app.bot.telegram.getChat(memberId);
-      console.log(chat, (app.bot.telegram as any).token);
-      const authData: any[] = [];
-      Object.keys(user).sort((a, b) => a > b ? 1 : -1).forEach(key => {
-        if (key !== 'hash') {
-          authData.push(key + '=' + user[key]);
-        }
-      });
-      const dataCheckString = authData.join('\n');
-      const hash = crypto.createHash('sha256');
-      hash.update((app.bot.telegram as any).token);
-      const secretKey = hash.digest('latin1');
-      const hmac = crypto.createHmac('sha256', secretKey);
-      hmac.update(dataCheckString);
-      const hashCompare = hmac.digest('hex');
-
-      console.log(hashCompare, dataCheckString);
-      amount = parseFloat(String(amount).replace(',', '.'));
-      const groupObj = await GroupModel.findById(id);
-      if (groupObj === null || typeof groupObj === 'undefined') {
-        return res.send('Group not found/no Group ID transmitted!');
-      }
-      await groupObj.editEntry(memberId, uuid, description, amount);
-      res.send('ok');
     });
   }
 };
