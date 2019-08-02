@@ -1,6 +1,6 @@
 // import {Document, Schema, Model, model} from 'mongoose';
 import { prop, post, Typegoose, InstanceType, instanceMethod, arrayProp, pre } from 'typegoose';
-import { IGroupData } from './interfaces'
+import { IGroupData, ITransaction, IMember } from './interfaces'
 const AsciiTable = require('ascii-table');
 import { v1 as uuid } from 'uuid';
 import * as _ from 'lodash';
@@ -9,9 +9,11 @@ import { Entry } from './entry';
 import { app } from './app';
 import {web} from './web';
 import {roundToCent} from './util';
+import * as moment from 'moment-timezone';
 export interface IMemberWithSum extends Member {
   sum: number;
 }
+import { PaypalMappingModel } from './paypalMapping';
 
 @pre<Group>('save', function(next) { // or @pre(this: Car, 'save', ...
 this.lastExport = new Date();
@@ -30,6 +32,8 @@ export class Group extends Typegoose {
     default: []
   })
   members: Member[];
+  @prop({default: false})
+  dayMode: boolean;
   @prop()
   sheetId?: string;
   @prop()
@@ -67,16 +71,14 @@ export class Group extends Typegoose {
     }, 0);
   };
   @instanceMethod
-  evaluate(this: InstanceType<Group>): IGroupData {
-    return {
-      id: this.id,
-      name: this.name || '',
-      members: this.members.map(member => {
-        let hasPayed = 0;
-        let toPay = 0;
-        for (const entry of member.entries) {
-          hasPayed += entry.amount;
-        }
+  async evaluate(this: InstanceType<Group>): Promise<IGroupData> {
+    const members = this.members.map(member => {
+      let hasPayed = 0;
+      let toPay = 0;
+      for (const entry of member.entries) {
+        hasPayed += entry.amount;
+      }
+      if (this.dayMode === false) {
         for (const memberToPay of this.members) {
           for (const entry of memberToPay.entries) {
             if (!entry.partialGroupMembers || entry.partialGroupMembers.length === 0) {
@@ -86,29 +88,100 @@ export class Group extends Typegoose {
             }
           }
         }
-        const entries = member.entries.map(entry => {
-          const partialGroupMembers = entry.partialGroupMembers ? entry.partialGroupMembers : [];
-          return {
-            description: entry.description,
-            amount: entry.amount,
-            time: entry.time,
-            uuid: entry.uuid,
-            partialGroupMembers}
-            ;
-        });
-        const round = (num: number) =>  Math.sign(num) * Math.round(Math.abs(num));
 
-        // hasPayed = round(hasPayed * 100) / 100;
-        // toPay = round(toPay * 100) / 100;
 
+      } else {
+        for (const memberToPay of this.members) {
+          for (const entry of memberToPay.entries) {
+            if (!entry.partialGroupMembers || entry.partialGroupMembers.length === 0) {
+              // Only Member which dates fit has to Pay
+              const days = typeof entry.endTime === 'undefined' ? 1 : Math.max(1, Math.ceil(moment(entry.endTime).diff(moment(entry.time), 'days', true)));
+              const perDay = entry.amount / days;
+              for (let i = 0; i < days; i++) {
+                const currentDay = moment(entry.time).add(i, 'days');
+                const membersWhoHaveToPay = this.members.filter(memberFilter => memberFilter.allTime || (memberFilter.start <= currentDay.toDate() && moment(memberFilter.end).endOf('day').toDate() > currentDay.toDate()));
+                if (membersWhoHaveToPay.findIndex(memberFind => memberFind.id === member.id) > -1) {
+                  toPay += perDay / membersWhoHaveToPay.length;
+                }
+              }
+              // toPay += entry.amount / this.members.filter(memberFilter => memberFilter.allTime || (memberFilter.start < entry.time && memberFilter.end > entry.time)).length;
+            } else if (entry.partialGroupMembers.indexOf(member.id) > -1) {
+              toPay += entry.amount / entry.partialGroupMembers.length;
+            }
+          }
+        }
+      }
+      const entries = member.entries.map(entry => {
+        const partialGroupMembers = entry.partialGroupMembers ? entry.partialGroupMembers : [];
         return {
-          id: member.id,
-          name: member.name,
-          hasPayed,
-          toPay,
-          entries: entries
-        };
-      })
+          description: entry.description,
+          amount: entry.amount,
+          time: entry.time,
+          endTime: entry.endTime,
+          uuid: entry.uuid,
+          partialGroupMembers}
+          ;
+        });
+      // const round = (num: number) =>  Math.sign(num) * Math.round(Math.abs(num));
+
+      // hasPayed = round(hasPayed * 100) / 100;
+      // toPay = round(toPay * 100) / 100;
+
+      return {
+        id: member.id,
+        name: member.name,
+        start: member.start,
+        end: member.end,
+        allTime: member.allTime,
+        hasPayed,
+        toPay,
+        entries: entries
+      };
+    });
+    const transactions: ITransaction[] = [];
+    let equalized = false;
+    interface IMemberWithOpen extends IMember {
+      open: number;
+    }
+    const membersCopy: IMemberWithOpen[]  = JSON.parse(JSON.stringify(members));
+    for (const member of membersCopy) {
+      member.open = member.hasPayed - member.toPay;
+    }
+    let overrun = 0;
+    while (!equalized && overrun < 100) {
+      membersCopy.sort((a, b) => a.open - b.open);
+      const from = membersCopy[0];
+      const to = membersCopy[membersCopy.length - 1];
+      const amount = Math.min(Math.abs(from.open), to.open);
+      const mapping = await PaypalMappingModel.findOne({telegramId: to.id});
+      const transaction: ITransaction = {
+        from: from.name,
+        to: to.name,
+        amount
+      };
+      if (mapping) {
+        transaction.paypalLink = mapping.link + '/' + roundToCent(amount);
+      }
+      transactions.push(transaction);
+      from.open += amount;
+      to.open -= amount;
+      equalized = true;
+      for (const member of membersCopy) {
+        if (member.open > 0.01) {
+          equalized = false;
+        }
+      }
+      overrun++;
+    }
+    if (overrun === 100) {
+      console.error(`overrun`);
+    }
+    return {
+      id: this.id,
+      name: this.name || '',
+      dayMode: this.dayMode,
+      members,
+      transactions: overrun < 100 ? transactions : []
     };
   }
   @instanceMethod
@@ -234,8 +307,8 @@ export class Group extends Typegoose {
     return newEntry;
   }
 
-  @instanceMethod getSummaryTable(this: InstanceType<Group>) {
-    const evaluation = this.evaluate();
+  @instanceMethod async getSummaryTable(this: InstanceType<Group>) {
+    const evaluation = await this.evaluate();
     const table = new AsciiTable();
     table.addRow('name', 'has payed', 'has to pay', 'still open')
     evaluation.members.forEach(member => {
@@ -245,8 +318,8 @@ export class Group extends Typegoose {
     return table.toString();
   }
 
-  @instanceMethod getMemberinfo(this: InstanceType<Group>, memberId: number) {
-    const evaluation = this.evaluate();
+  @instanceMethod async getMemberinfo(this: InstanceType<Group>, memberId: number) {
+    const evaluation = await this.evaluate();
 
     const member = evaluation.members.find(member => member.id === memberId);
     if (!member) {

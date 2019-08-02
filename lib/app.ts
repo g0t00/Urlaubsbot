@@ -6,10 +6,11 @@ import * as cron from 'cron';
 import * as express from 'express';
 import { callbackHandler, IButton } from './callback-handler';
 connect('mongodb://db:v6RB5Al0M27Z4kH@ds039311.mlab.com:39311/urlaubsbot', { useNewUrlParser: true });
-
+const AsciiTable = require('ascii-table');
 
 import { web } from './web';
 import { GroupModel } from './group';
+import { PaypalMappingModel } from './paypalMapping';
 // import { Sheet } from'./sheet';
 class App {
   express: express.Application;
@@ -68,7 +69,7 @@ class App {
     //   });
     // });
     this.bot.on('message', async ({ chat, reply, message }, next) => {
-        // reply('message');
+        // reply('mesesage');
         if (!chat || !chat.id || !message || !message.from) {
           reply('WTF');
           return;
@@ -104,7 +105,9 @@ class App {
         reply('Neue Gruppe angelegt: ' + groupObj.name);
       }
       for (const member of (message.new_chat_members || [])) {
-        groupObj.addMember(member.first_name, member.id);
+        if (member.is_bot === false) {
+          groupObj.addMember(member.first_name, member.id);
+        }
       }
 
       groupObj.addMember(message.from.first_name, message.from.id);
@@ -133,7 +136,9 @@ class App {
       }
       // reply(JSON.stringify(message.new_chat_members));
       for (const member of (message.new_chat_members || [])) {
-        groupObj.addMember(member.first_name, member.id);
+        if (member.is_bot === false) {
+          groupObj.addMember(member.first_name, member.id);
+        }
       }
     });
     this.bot.command('initializegroup', async ctx => {
@@ -172,7 +177,6 @@ class App {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: ctx.chat.id });
-
       if (groupObj) {
         if (groupObj.members.length === 0) {
           ctx.reply('GroupModel empty.');
@@ -198,19 +202,7 @@ class App {
     });
 
     this.bot.command('newmember', async ({ chat, reply, message }) => {
-      if (!chat || !chat.id || !message || !message.from) {
-        return reply('nope');
-      }
-      const groupObj = await GroupModel.findOne({ telegramId: chat.id });
-
-      if (!groupObj) {
-        reply('Not in group / none initialized group');
-        return;
-      }
-      console.log(message.entities);
-      if (!await groupObj.addMember(message.from.first_name, message.from.id)) {
-        reply('You are already in group!');
-      }
+      return reply('Command deprecated. Members get added on any message');
     });
     this.bot.command('newmembernotelegram', async ({ message, reply, chat }) => {
       if (!chat || !chat.id || !message || !message.text || !message.entities) {
@@ -253,7 +245,7 @@ class App {
       replyWithHTML(`<a href="${this.url}client/index.html#${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
     });
 
-    this.bot.command('summary', async ({ chat, reply, replyWithHTML }) => {
+    this.bot.command('summary', async ({ chat, reply, replyWithHTML, replyWithPhoto}) => {
       if (!chat || !chat.id) {
         return;
       }
@@ -263,9 +255,48 @@ class App {
         reply('Not in group / none initialized group');
         return;
       }
-
-      replyWithHTML('<code>' + groupObj.getSummaryTable() + '</code>');
+      const table = await groupObj.getSummaryTable();
+      replyWithHTML('<code>' + table + '</code>');
     });
+    this.bot.command('transactions', async ({chat, reply, replyWithHTML}) => {
+      if (!chat || !chat.id) {
+        return;
+      }
+      const groupObj = await GroupModel.findOne({ telegramId: chat.id });
+
+      if (!groupObj) {
+        reply('Not in group / none initialized group');
+        return;
+      }
+      console.log(`<b>Transactions</b>\n` + (await groupObj.evaluate()).transactions.map(transaction => `${transaction.from} -> ${transaction.to}: ${Math.round(transaction.amount * 100) / 100} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''}`).join('\n'));
+      replyWithHTML(`<b>Transactions</b>\n` + (await groupObj.evaluate()).transactions.map(transaction => `${transaction.from} -> ${transaction.to}: ${Math.round(transaction.amount * 100) / 100} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''}`).join('\n'));
+      // const table = AsciiTable.factory({
+      //     title: 'Transactions'
+      //   , heading: [ 'from', 'to', 'amount', 'paypalLink' ]
+      //   , rows: (await groupObj.evaluate()).transactions.map(transaction => [transaction.from, transaction.to, Math.round(transaction.amount * 100) / 100, transaction.paypalLink ? `</code><a href="${transaction.paypalLink}">paypal</a><code>` : ''])
+      // })
+      // replyWithHTML('<code>' + table.toString() + '</code>');
+    });
+    this.bot.command('setpaypal', async ({chat, reply, message}) => {
+      if (!chat || !chat.id || !message || !message.text || !message.from) {
+        return;
+      }
+      const paypalLinkMatch = message.text.match(/paypal.me\/([a-z0-9]+)/i);
+      if (!paypalLinkMatch) {
+        return reply('No Paypal Link found' + message.text);
+      }
+      const paypalLink = 'https://www.paypal.me/' + paypalLinkMatch[1];
+      const mapping = await PaypalMappingModel.findOne({telegramId: message.from.id});
+      if (!mapping) {
+        const doc = new PaypalMappingModel({telegramId: message.from.id, link: paypalLink});
+        await doc.save();
+        return reply('Paypal Link set to: ' + doc.link);
+      } else {
+        mapping.link = paypalLink;
+        await mapping.save();
+        return reply('Paypal Link set to: ' + mapping.link);
+      }
+    })
     this.bot.command('setcurrency', async ({ message, reply, chat }) => {
       if (!chat || !chat.id ||  !message ||  !message.text ||  !message.entities) {
         return;
@@ -325,7 +356,7 @@ class App {
         return;
       }
       const group = groupObj;
-      replyWithHTML(group.getMemberinfo(message.from.id));
+      replyWithHTML(await group.getMemberinfo(message.from.id));
     });
     this.bot.command('remove', async ({ reply, message, chat }) => {
       if (!chat || !chat.id ||  !message || !message.from) {
@@ -544,6 +575,8 @@ class App {
     /addpartial - Add amount only to certain group members
     /remove - Remove Entry
     /editamount - Edit Amount of entry
+    /setpaypal - Set Paypal Link
+    /transactions - Get Transactions
     /editdescription - Edit Description of entry`;
         reply(str);
       });

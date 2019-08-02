@@ -27,6 +27,9 @@ import Chip from '@material-ui/core/Chip';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
+import { MuiPickersUtilsProvider, DateTimePicker } from 'material-ui-pickers';
+import MomentUtils from '@date-io/moment';
+
 
 import {API_BASE} from '../api';
 export interface IEntryTableProps {
@@ -34,12 +37,28 @@ export interface IEntryTableProps {
   groupData: IGroupData;
 }
 const DateFormatter: React.ComponentType<DataTypeProvider.ValueFormatterProps> = ({value}:  {value: Date}) => {
-  return <span>{value.toLocaleString().toString()}</span>;
+  if (typeof value !== 'undefined') {
+    return <span>{value.toLocaleDateString()}</span>;
+  }
+  return <span> - </span>;
 }
+const DateEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange, column}) => (
+  <MuiPickersUtilsProvider utils={MomentUtils}>
+            <DateTimePicker
+              margin="normal"
+              label = ""
+              ampm = {false}
+              clearable = {column.name === 'endTime'}
+              value={value}
+              onChange={onValueChange}
+            />
+        </MuiPickersUtilsProvider>
 
+);
 const DateTypeProvider: React.ComponentType<DataTypeProviderProps>  = (props: DataTypeProviderProps) => (
   <DataTypeProvider
     formatterComponent={DateFormatter}
+    editorComponent={DateEditor}
     {...props}
   />
 );
@@ -97,12 +116,15 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
             memberId: member.id,
             description: add.description,
             partialGroupMembers: add.partialGroupMembers,
+            time: add.time,
+            endTime: add.endTime,
             amount
           };
           await fetch(API_BASE + '/' + this.props.groupData.id, {
             method: 'POST',
             headers: {
               "Content-Type": "application/json; charset=utf-8",
+              "Auth": localStorage.getItem('user')
               // "Content-Type": "application/x-www-form-urlencoded",
             },
             body: JSON.stringify(body)
@@ -119,6 +141,7 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
           method: 'PUT',
           headers: {
             "Content-Type": "application/json; charset=utf-8",
+            "Auth": localStorage.getItem('user')
             // "Content-Type": "application/x-www-form-urlencoded",
           },
           body: JSON.stringify(changes)
@@ -208,8 +231,7 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
     />
   );
   async deleteEntry() {
-    await fetch(API_BASE + `/delete/${this.props.groupData.id}/${this.state.deleteDialogEntry.uuid}`, {
-    });
+    await fetch(API_BASE + `/${this.props.groupData.id}/${this.state.deleteDialogEntry.uuid}`, {method: 'DELETE', headers: {  "Auth": localStorage.getItem('user')}    });
     console.log(this.state.deleteDialogEntry);
     this.setState({deleteDialogOpen: false});
   }
@@ -225,7 +247,8 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
           { name: 'description', title: 'description' },
           { name: 'partialGroupMembers', title: 'for' },
           { name: 'amount', title: 'amount' },
-          { name: 'time', title: 'entry date' },
+          { name: 'time', title: 'entry date'},
+          { name: 'endTime', title: 'End Date' },
         ]}
         getRowId = {getEntryId}
         >
@@ -233,12 +256,13 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
         <IntegratedSorting />
         <EditingState
           columnExtensions = {[
-            { columnName: 'time', editingEnabled: false },
+            // { columnName: 'time', editingEnabled: false },
           ]}
           onCommitChanges={this.commitChanges}
         />
         <Table />
         <DateTypeProvider for={['time']} />
+        <DateTypeProvider for={['endTime']} />
         <NumberTypeProvider for={['amount']} />
         <this.partialGroupProvider
         for={['partialGroupMembers']}

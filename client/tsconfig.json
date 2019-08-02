@@ -5,7 +5,9 @@
         "noImplicitAny": true,
         "module": "commonjs",
         "target": "ESNext",
-        "jsx": "react"
+        "jsx": "react",
+        "moduleResolution": "node",
+        "allowSyntheticDefaultImports": true
     },
     "include": [
         "./src/**/*"

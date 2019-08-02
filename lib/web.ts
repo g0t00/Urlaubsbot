@@ -4,6 +4,7 @@ import { app } from './app';
 import { GroupModel } from './group';
 import * as EventEmitter from 'events';
 import {Entry} from './entry';
+import {IGroupMemberChange} from './interfaces'
 export class Web {
   router: express.Router;
   emitter = new EventEmitter();
@@ -68,14 +69,14 @@ export class Web {
        'Cache-Control': 'no-cache',
        'Connection': 'keep-alive'
      });
-     const evaluation = groupObj.evaluate();
+     const evaluation = await groupObj.evaluate();
      res.write("data: " + JSON.stringify(evaluation) + "\n\n");
      const handler = async () => {
        const groupObj = await GroupModel.findById(id).exec();
        if (!groupObj) {
          return;
        }
-       const evaluation = groupObj.evaluate();
+       const evaluation = await groupObj.evaluate();
        res.write("data: " + JSON.stringify(evaluation) + "\n\n");
      };
      this.emitter.on(id, handler);
@@ -94,7 +95,7 @@ export class Web {
         res.send('not found');
         return;
       }
-      const evaluation = groupObj.evaluate();
+      const evaluation = await groupObj.evaluate();
       res.json(evaluation);
     });
     this.router.put('/:id/:entryUuid', this.authorize, async (req, res) => {
@@ -114,7 +115,7 @@ export class Web {
         res.send('did not find entry ' + req.params.entryUuid);
         return;
       }
-      const oldEntry: any = {description: entry.description, amount: entry.amount, partialGroupMembers: entry.partialGroupMembers};
+      const oldEntry: any = {description: entry.description, amount: entry.amount, partialGroupMembers: entry.partialGroupMembers, time: entry.time, endTime: entry.endTime};
       const oldOwner = groupObj.members.find(member => typeof member.entries.find(entrySearch => entrySearch.uuid === entry.uuid) !== 'undefined');
       // const oldEntry: any = {descrip...entry};
       for (const key of Object.keys(req.body)) {
@@ -127,7 +128,14 @@ export class Web {
               targetMember.entries.push(entry);
             }
           }
-        }  else {
+        } else if (key === 'endTime') {
+          if (req.body[key] === null) {
+            entry[key] = undefined;
+          } else {
+
+            entry[key] = req.body[key];
+          }
+        } else {
           entry[key] = req.body[key];
         }
       }
@@ -143,11 +151,11 @@ export class Web {
               partialGroupNames.push('???');
             }
           }
-          return `${entry.description} ${entry.amount} ${(entry.partialGroupMembers && entry.partialGroupMembers.length > 0) ? partialGroupNames.join(',') : 'all'}`;
+          return `<b>${entry.description}</b> (${entry.amount}€ ${(entry.partialGroupMembers && entry.partialGroupMembers.length > 0) ? partialGroupNames.join(',') : 'all'} ${entry.time && entry.time.toLocaleDateString()}${typeof entry.endTime  !== 'undefined' ? ` until ` + entry.endTime.toLocaleDateString(): ''})`;
         }
         const newOwner = groupObj.members.find(member => typeof member.entries.find(entrySearch => entrySearch.uuid === entry.uuid) !== 'undefined');
 
-        await app.bot.telegram.sendMessage(groupObj.telegramId, `Changed Entry: ${oldOwner && oldOwner.name}: (${parseEntry(oldEntry)}) -> ${newOwner && newOwner.name}: (${parseEntry(entry)})`);
+        await app.bot.telegram.sendMessage(groupObj.telegramId, `Changed Entry: \n${oldOwner && oldOwner.name}: ${parseEntry(oldEntry)} \n-> ${newOwner && newOwner.name}: ${parseEntry(entry)}`, {parse_mode: 'HTML'} as any);
 
         return res.json(true);
       } catch(e) {
@@ -156,8 +164,8 @@ export class Web {
         return res.json(false);
       }
     });
-    this.router.delete('/:groupId/:entryUuid', this.authorize, async (req, res) => {
-      const groupId = req.params.groupId;
+    this.router.delete('/:id/:entryUuid', this.authorize, async (req, res) => {
+      const groupId = req.params.id;
       const groupObj = await GroupModel.findById(groupId);
       if (!groupObj) {
         return res.send('GroupModel not found!');
@@ -192,6 +200,20 @@ export class Web {
     //     res.status(500).send(e.message);
     //   }
     // });
+    this.router.post('/:id/dayMode', this.authorize, async (req, res) => {
+      const groupId = req.params.id;
+      const {dayMode} = req.body;
+      const groupObj = await GroupModel.findById(groupId);
+      if (groupObj === null) {
+        res.status(500);
+        return res.send('GroupModel not found/no GroupModel ID transmitted!');
+      }
+      groupObj.dayMode = dayMode;
+      await groupObj.save();
+      await app.bot.telegram.sendMessage(groupObj.telegramId, `Changed Daymode to ${groupObj.dayMode}`, {parse_mode: 'HTML'} as any);
+
+      res.status(200).json(groupObj);
+    })
     this.router.post('/:id', this.authorize, async (req, res) => {
       const groupId = req.params.id;
       let {memberId, description = '', amount = '', partialGroupMembers = []} = req.body;
@@ -217,6 +239,47 @@ export class Web {
       }
       res.send('Error while adding');
     });
+    this.router.post('/:id/member/:memberId', this.authorize, async (req, res) => {
+      const change = req.body as IGroupMemberChange;
+      console.log(req.body);
+      const id = req.params.id;
+      console.log(id);
+      const groupObj = await GroupModel.findById(id).exec();
+      if (!groupObj) {
+        res.status(404);
+        res.send('did not find group ' + id);
+        return;
+      }
+      const memberId = parseInt(req.params.memberId, 10);
+      const member = groupObj.members.find(member => member.id === memberId);
+      if (typeof member === 'undefined') {
+        res.status(404);
+        res.send('did not find member ' + memberId);
+        return;
+      }
+      if (typeof change.start !== 'undefined') {
+        member.start = change.start;
+      }
+      if (typeof change.end !== 'undefined') {
+        member.end = change.end;
+      }
+      if (typeof change.allTime !== 'undefined') {
+        member.allTime = change.allTime;
+      }
+      await groupObj.save();
+      res.status(200);
+      console.log(change, member);
+      let message: string;
+      if (member.allTime) {
+        message = `Changed ${member.name} mode to allTime`;
+      } else {
+        message = `Changed ${member.name} mode to partial Time start: ${member.start.toLocaleString()} end: ${member.end.toLocaleString()}`;
+
+      }
+      await app.bot.telegram.sendMessage(groupObj.telegramId, message, {parse_mode: 'HTML'} as any);
+
+      return res.json(member);
+    })
   }
 };
 export const web = new Web();

@@ -6,8 +6,10 @@ export class Entry extends Typegoose {
   description: string;
   @prop({required: true})
   amount: number;
+  @prop({required: true})
+  time: Date;
   @prop()
-  time?: Date;
+  endTime?: Date;
   @arrayProp({
     items: Number,
     default: [],
