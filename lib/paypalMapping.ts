@@ -1,7 +1,7 @@
 // import {Document, Schema, Model, model} from 'mongoose';
-import { prop, post, Typegoose, InstanceType, instanceMethod, arrayProp, pre } from 'typegoose';
+import { getModelForClass, prop, post } from '@typegoose/typegoose';
 import * as moment from 'moment-timezone';
-export class PaypalMapping extends Typegoose {
+export class PaypalMapping {
   @prop({ required: true, index: true })
   telegramId: number;
   @prop({required: true})
@@ -13,4 +13,4 @@ export class PaypalMapping extends Typegoose {
 
 
 
-export const PaypalMappingModel = new PaypalMapping().getModelForClass(PaypalMapping);
+export const PaypalMappingModel = getModelForClass(PaypalMapping);

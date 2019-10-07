@@ -1,5 +1,5 @@
 // import {Document, Schema, Model, model} from 'mongoose';
-import { prop, post, Typegoose, InstanceType, instanceMethod, arrayProp, pre } from 'typegoose';
+import { prop, post, DocumentType, instanceMethod, arrayProp, pre, getModelForClass } from '@typegoose/typegoose';
 import { IGroupData, ITransaction, IMember } from './interfaces'
 const AsciiTable = require('ascii-table');
 import { v1 as uuid } from 'uuid';
@@ -22,7 +22,7 @@ this.lastExport = new Date();
 @post<Group>('save', function (group) {
   web.emitter.emit(group.id);
 })
-export class Group extends Typegoose {
+export class Group {
   @prop({ required: true, index: true })
   telegramId: number;
   @prop()
@@ -40,16 +40,15 @@ export class Group extends Typegoose {
   currency?: number;
   @prop()
   lastExport?: Date;
-  @instanceMethod
-  getSum(this: InstanceType<Group>) {
+  public getSum() {
     return this.members.reduce((accMembers, member) => {
       return accMembers + member.entries.reduce((accEntries, entry) => {
         return accEntries + entry.amount;
       }, 0);
     }, 0);
   };
-  @instanceMethod
-  renderEntry(this: InstanceType<Group>, entry: Entry): string {
+
+  public renderEntry(this: DocumentType<Group>, entry: Entry): string {
     let text = entry.description + ': ' + entry.amount + ' ';
     text += 'Members having to pay for this: ';
     if (entry.partialGroupMembers && entry.partialGroupMembers.length > 0) {
@@ -64,14 +63,14 @@ export class Group extends Typegoose {
     }
     return text;
   }
-  @instanceMethod
-  getCount(this: InstanceType<Group>) {
+
+  getCount(this: DocumentType<Group>) {
     return this.members.reduce((accMembers, member) => {
       return accMembers + member.entries.length;
     }, 0);
   };
-  @instanceMethod
-  async evaluate(this: InstanceType<Group>): Promise<IGroupData> {
+
+  async evaluate(this: DocumentType<Group>): Promise<IGroupData> {
     const members = this.members.map(member => {
       let hasPayed = 0;
       let toPay = 0;
@@ -184,8 +183,8 @@ export class Group extends Typegoose {
       transactions: overrun < 100 ? transactions : []
     };
   }
-  @instanceMethod
-  async deleteEntryByUuid(this: InstanceType<Group>, uuid: string) {
+
+  async deleteEntryByUuid(this: DocumentType<Group>, uuid: string) {
     let found = false;
     for (const member of this.members) {
       if (found === false) {
@@ -204,8 +203,8 @@ export class Group extends Typegoose {
 
     return false;
   }
-  @instanceMethod
-  async findEntryByUuid(this: InstanceType<Group>, uuid: string): Promise<Entry|undefined> {
+
+  async findEntryByUuid(this: DocumentType<Group>, uuid: string): Promise<Entry|undefined> {
     for (const member of this.members) {
       const entry = member.entries.find(entry => entry.uuid === uuid);
         if (entry) {
@@ -214,12 +213,12 @@ export class Group extends Typegoose {
     }
     return undefined;
   }
-  @instanceMethod
-  getMemberById(this: InstanceType<Group>, id: number) {
+
+  getMemberById(this: DocumentType<Group>, id: number) {
     return _.find((this.members as Member[]), member => member.id === id);
   }
-  @instanceMethod
-  async addMember(this: InstanceType<Group>, name: string, id: number) {
+
+  async addMember(this: DocumentType<Group>, name: string, id: number) {
     let double = false;
     this.members.forEach(member => {
       if (member.id === id) {
@@ -242,8 +241,8 @@ export class Group extends Typegoose {
     }
     return true;
   }
-  @instanceMethod
-  async addEntry(this: InstanceType<Group>, memberId: number, description: string, amount: number, partialGroupMembers?: number[]) {
+
+  async addEntry(this: DocumentType<Group>, memberId: number, description: string, amount: number, partialGroupMembers?: number[]) {
     let found = false;
     this.members.forEach(member => {
       if (member.id === memberId) {
@@ -269,8 +268,8 @@ export class Group extends Typegoose {
     return found;
   }
 
-  @instanceMethod
-  async removeEntry(this: InstanceType<Group>, memberId: number, uuid: string) {
+
+  async removeEntry(this: DocumentType<Group>, memberId: number, uuid: string) {
     const member = this.getMemberById(memberId);
     if (!member) {
       throw new Error('member not found!');
@@ -286,8 +285,8 @@ export class Group extends Typegoose {
     return removedEntry;
   }
 
-  @instanceMethod
-  async editEntry(this: InstanceType<Group>, memberId: number, uuid: string, description: string, amount: number) {
+
+  async editEntry(this: DocumentType<Group>, memberId: number, uuid: string, description: string, amount: number) {
     const member = this.getMemberById(memberId);
     if (!member) {
       throw new Error('member not found!');
@@ -307,7 +306,7 @@ export class Group extends Typegoose {
     return newEntry;
   }
 
-  @instanceMethod async getSummaryTable(this: InstanceType<Group>) {
+   async getSummaryTable(this: DocumentType<Group>) {
     const evaluation = await this.evaluate();
     const table = new AsciiTable();
     table.addRow('name', 'has payed', 'has to pay', 'still open')
@@ -318,7 +317,7 @@ export class Group extends Typegoose {
     return table.toString();
   }
 
-  @instanceMethod async getMemberinfo(this: InstanceType<Group>, memberId: number) {
+   async getMemberinfo(this: DocumentType<Group>, memberId: number) {
     const evaluation = await this.evaluate();
 
     const member = evaluation.members.find(member => member.id === memberId);
@@ -357,4 +356,4 @@ export class Group extends Typegoose {
 
 
 
-export const GroupModel = new Group().getModelForClass(Group);
+export const GroupModel = getModelForClass(Group);

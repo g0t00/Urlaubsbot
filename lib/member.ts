@@ -1,8 +1,8 @@
-import { prop, Typegoose, arrayProp } from 'typegoose';
+import { prop, arrayProp } from '@typegoose/typegoose';
 import * as moment from 'moment-timezone';
 ;
 import {Entry} from './entry';
-export class Member extends Typegoose {
+export class Member {
   @arrayProp({items: Entry, default: []})
   entries: Entry[] = [];
   @prop({required: true})

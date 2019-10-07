@@ -1,5 +1,5 @@
-import { prop, Typegoose, arrayProp } from 'typegoose';
-export class Entry extends Typegoose {
+import { prop, arrayProp } from '@typegoose/typegoose';
+export class Entry {
   @prop({required: true})
   uuid: string;
   @prop({required: true})
