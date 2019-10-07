@@ -312,6 +312,7 @@ class App {
         return reply('Could not parse Currency!');
       }
       groupObj.currency = currency;
+      await groupObj.save();
       reply(`Currency set to ${currency}.`);
     });
     this.bot.command('getcurrency', async ({ reply, chat }) => {

@@ -145,18 +145,17 @@ async function add({reply, chat, message, replyWithMarkdown}: ContextMessageUpda
       reply('Could not parse Amount!');
       return;
     }
-    if (useForeign) {
-      if (!group.currency) {
-        return reply('Currency not set!');
-      }
-      amount /= group.currency;
-    }
     description = messageText.replace(/\d+[.,]?\d*/, '').trim();
     if (description === '') {
       description = 'no desc';
     }
   }
-
+  if (useForeign) {
+    if (!group.currency) {
+      return reply('Currency not set!');
+    }
+    amount /= group.currency;
+  }
   if (!group.addEntry(memberId, description, amount)) {
     reply('Error while adding!');
   }
