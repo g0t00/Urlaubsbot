@@ -14,7 +14,12 @@ export interface IMemberWithSum extends Member {
   sum: number;
 }
 import { PaypalMappingModel } from './paypalMapping';
-
+export class GroupBannedUser {
+  @prop({required: true})
+  name: string;
+  @prop({required: true})
+  id: number;
+}
 @pre<Group>('save', function(next) { // or @pre(this: Car, 'save', ...
 this.lastExport = new Date();
   next();
@@ -32,6 +37,11 @@ export class Group {
     default: []
   })
   members: Member[];
+  @arrayProp({
+    items: GroupBannedUser,
+    default: []
+  })
+  groupBannedUsers: GroupBannedUser[];
   @prop({default: false})
   dayMode: boolean;
   @prop()

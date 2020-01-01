@@ -3,9 +3,9 @@ import { getModelForClass, prop, post } from '@typegoose/typegoose';
 import * as moment from 'moment-timezone';
 export class PaypalMapping {
   @prop({ required: true, index: true })
-  telegramId: number;
+  telegramId!: number;
   @prop({required: true})
-  link: string;
+  link!: string;
 }
 
 

@@ -83,7 +83,7 @@ class App {
           groupObj.telegramId = chat.id;
           await groupObj.save();
         }
-        if (!groupObj.members.find(member => member.id === from.id)) {
+      if (!groupObj.members.find(member => member.id === from.id) && !groupObj.groupBannedUsers.find(member => member.id === from.id)) {
           await groupObj.addMember(message.from.first_name, message.from.id)
         }
 
@@ -136,7 +136,7 @@ class App {
       }
       // reply(JSON.stringify(message.new_chat_members));
       for (const member of (message.new_chat_members || [])) {
-        if (member.is_bot === false) {
+        if (member.is_bot === false && !groupObj.members.find(memberSearch => member.id === memberSearch.id) && !groupObj.groupBannedUsers.find(memberSearch => member.id === memberSearch.id)) {
           groupObj.addMember(member.first_name, member.id);
         }
       }
@@ -330,22 +330,6 @@ class App {
       reply(`Currency is ${groupObj.currency}.`);
     });
 
-
-    const exportJob = new cron.CronJob({
-      cronTime: '*/15 * * * *',
-      onTick: async () => {
-        const groups = await GroupModel.find().exec();
-        groups.forEach(group => {
-          if (group.sheetId !== null) {
-            // Sheet.export(group);
-          }
-        });
-      },
-      runOnInit: true
-    });
-    exportJob.start();
-    console.log('exportJob status', exportJob.running);
-
     this.bot.command('memberinfo', async ({ chat, reply, replyWithHTML, message }) => {
       if (!chat || !chat.id || !message || !message.from) {
         return;
@@ -391,6 +375,49 @@ class App {
 
       const keyboard = callbackHandler.getKeyboard(buttons);
       return reply('Please select entry to delete:', {
+        reply_markup:
+          Markup.inlineKeyboard(keyboard)
+        // .oneTime()
+        // .resize()
+        // .extra()
+      });
+    });
+    this.bot.command('kick', async ({reply, chat}) => {
+      if (!chat) {
+        return;
+      }
+      const groupObj = await GroupModel.findOne({ telegramId: chat.id });
+
+      if (!groupObj) {
+        reply('Not in group / none initialized group');
+        return;
+      }
+
+      const buttons = groupObj.members.map((member, index) => {
+        return [{
+          text: member.name,
+          clicked: async () => {
+            if (member.entries.length > 0) {
+              await reply(`${member.name} has entries. Can not kick user with entries.`);
+              return true;
+            }
+            groupObj.members.splice(index, 1);
+            groupObj.groupBannedUsers.push({
+              id: member.id,
+              name: member.name
+            });
+            await groupObj.save();
+            await reply(`${member.name} kicked!`);
+            return true;
+          }
+        }]
+      });
+      buttons.push([{
+        text: 'Cancel',
+        clicked: async () => { return true;}
+      }]);
+      const keyboard = callbackHandler.getKeyboard(buttons);
+      return reply('Please select member to kick:', {
         reply_markup:
           Markup.inlineKeyboard(keyboard)
         // .oneTime()
@@ -562,9 +589,6 @@ class App {
     /newmember - adds yourself to group.
     /newmembernotelegram - adds a member who has no telegram
     /summary - get summary.
-    /setsheet - set Google Sheets ID to export to
-    /getsheetlink - get Google Sheets Link
-    /export - export to google Sheet
     /memberinfo - get Info about you
     /groupinfo - gets Link to fancy group view
     /setcurrency - Sets exchange rate for foreign currrency to be used. All foreign amounts will be divide by this value.
@@ -578,8 +602,13 @@ class App {
     /editamount - Edit Amount of entry
     /setpaypal - Set Paypal Link
     /transactions - Get Transactions
-    /editdescription - Edit Description of entry`;
-        reply(str);
+    /editdescription - Edit Description of entry
+    /kick - Kick User`;
+        const help = str.split('\n');
+        help.sort();
+        reply("test");
+        console.log('test');
+        reply(help.join('\n'));
       });
     }
 }

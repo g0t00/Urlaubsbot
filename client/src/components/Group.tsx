@@ -19,6 +19,7 @@ import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
 import { MuiPickersUtilsProvider, TimePicker, DatePicker } from 'material-ui-pickers';
 import MomentUtils from '@date-io/moment';
+import {PlotWrapper} from './PlotWrapper';
 
 import {API_BASE} from '../api';
 export enum sortRows {
@@ -196,6 +197,7 @@ export class Group extends React.Component<{}, {groupData: IGroupData}> {
           this.state.groupData.members.map((member, i) => this.renderMember(member, i))
         }
         </Grid>
+        <PlotWrapper groupData={this.state.groupData}/>
         <br/>
         <Card>
           <EntryTable entries={entriesFlat} groupData={this.state.groupData} />
