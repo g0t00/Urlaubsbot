@@ -22,19 +22,38 @@ import MomentUtils from '@date-io/moment';
 import {PlotWrapper} from './PlotWrapper';
 
 import {API_BASE} from '../api';
+import { AppBar, Tabs, Tab } from '@material-ui/core';
 export enum sortRows {
   description,
   amount,
   time
 };
+function TabPanel(props: any) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <Typography
+      component="div"
+      role="tabpanel"
+      hidden={value !== index}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
+      {...other}
+    >
+      {value === index && <div >{children}</div>}
+    </Typography>
+  );
+}
+
+
 export interface IEntryFlat extends IEntry {
     name: string;
 }
-export class Group extends React.Component<{}, {groupData: IGroupData}> {
+export class Group extends React.Component<{}, {groupData: IGroupData, tab: number}> {
   groupId: string;
   constructor(props: any) {
     super(props);
-    this.state = {groupData: {name: 'Loading. Are you logged in?', members: [], id: 0, dayMode: false, transactions: []}};
+    this.state = {groupData: {name: 'Loading. Are you logged in?', members: [], id: 0, dayMode: false, transactions: []}, tab: 0};
   }
   async loadData() {
     let source = new EventSource(API_BASE + '/' + this.groupId + '/stream?auth=' + localStorage.getItem('user'));
@@ -192,12 +211,23 @@ export class Group extends React.Component<{}, {groupData: IGroupData}> {
             label="Day Mode"
           />
         </FormGroup>
-        <Grid container spacing={16}>
+        <AppBar position="static">
+        <Tabs value={this.state.tab} onChange={(_, newValue) => this.setState({tab: newValue})} aria-label="simple tabs example">
+          <Tab label="Summary"  />
+          <Tab label="Plots"  />
+        </Tabs>
+      </AppBar>
+      <TabPanel value={this.state.tab} index={0}>
+      <Grid container spacing={16}>
         {
           this.state.groupData.members.map((member, i) => this.renderMember(member, i))
         }
         </Grid>
-        <PlotWrapper groupData={this.state.groupData}/>
+      </TabPanel>
+      <TabPanel value={this.state.tab} index={1}>
+      <PlotWrapper groupData={this.state.groupData}/>
+      </TabPanel>
+        
         <br/>
         <Card>
           <EntryTable entries={entriesFlat} groupData={this.state.groupData} />

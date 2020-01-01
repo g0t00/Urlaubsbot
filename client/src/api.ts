@@ -1,1 +1,1 @@
-export const API_BASE = '../group';
+export const API_BASE = 'https://anton-schulte.de/urlaub2/group';
