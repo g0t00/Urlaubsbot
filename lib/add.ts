@@ -84,16 +84,20 @@ async function add({reply, chat, message, replyWithMarkdown}: ContextMessageUpda
   if (!chat || !message || !message.from || !message.entities) {
     return reply('nope');
   }
+  const from = message.from;
   const groupObj = await GroupModel.findOne({telegramId: chat.id});
 
   if (!groupObj) {
     reply('Not in group / none initialized group');
     return;
   }
-  const member = groupObj.getMemberById(message.from.id);
-  if (member === null) {
-    reply('You are not in this group. Please use /newMember first!');
-    return;
+  let member = groupObj.getMemberById(message.from.id);
+  if (!groupObj.members.find(member => member.id === from.id) && !groupObj.groupBannedUsers.find(member => member.id === from.id)) {
+    await groupObj.addMember(message.from.first_name, message.from.id)
+    member = groupObj.getMemberById(message.from.id);
+  }
+  if (!member) {
+    return reply('User banned!');
   }
   const group = groupObj;
 

@@ -72,7 +72,7 @@
   "devDependencies": {
     "awesome-typescript-loader": "^5.2.1",
     "source-map-loader": "^0.2.4",
-    "typescript": "^3.6.0",
+    "typescript": "^3.7.4",
     "webpack-cli": "^3.1.2",
     "xo": "^0.21.1"
   },
