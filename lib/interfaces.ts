@@ -1,4 +1,3 @@
-import {Moment} from 'moment-timezone';
 ;
 export interface IGroupData {
   members: IMember [];

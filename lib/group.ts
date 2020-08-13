@@ -1,5 +1,5 @@
 // import {Document, Schema, Model, model} from 'mongoose';
-import { prop, post, DocumentType, instanceMethod, arrayProp, pre, getModelForClass } from '@typegoose/typegoose';
+import { prop, post, DocumentType, arrayProp, pre, getModelForClass } from '@typegoose/typegoose';
 import { IGroupData, ITransaction, IMember } from './interfaces'
 const AsciiTable = require('ascii-table');
 import { v1 as uuid } from 'uuid';

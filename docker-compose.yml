@@ -1,0 +1,15 @@
+version: '2.0'
+services:
+  app:
+    build: .
+    ports:
+    - "3000:3000"
+    depends_on:
+    - mongo
+    environment:
+      - PORT=3000
+      - TOKEN=***REMOVED***
+  mongo:
+    image: mongo:4.4.0-bionic
+    volumes:
+      - ./data:/data/db

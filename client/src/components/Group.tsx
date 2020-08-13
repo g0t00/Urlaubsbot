@@ -1,5 +1,5 @@
-import { IGroupData, IMember, IEntry, IGroupMemberChange } from '../../../lib/interfaces'
-import {roundToCent} from '../../../lib/util';
+import { IGroupData, IMember, IEntry, IGroupMemberChange } from '../interfaces'
+import {roundToCent} from '../util';
 // import deepcopy from "ts-deepcopy";
 
 import * as React from "react";
@@ -17,7 +17,7 @@ import {EntryTable} from './EntryTable';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
-import { MuiPickersUtilsProvider, TimePicker, DatePicker } from 'material-ui-pickers';
+import { MuiPickersUtilsProvider, TimePicker, DatePicker } from '@material-ui/pickers';
 import MomentUtils from '@date-io/moment';
 import {PlotWrapper} from './PlotWrapper';
 
@@ -218,7 +218,7 @@ export class Group extends React.Component<{}, {groupData: IGroupData, tab: numb
         </Tabs>
       </AppBar>
       <TabPanel value={this.state.tab} index={0}>
-      <Grid container spacing={16}>
+      <Grid container spacing={10}>
         {
           this.state.groupData.members.map((member, i) => this.renderMember(member, i))
         }
@@ -227,7 +227,7 @@ export class Group extends React.Component<{}, {groupData: IGroupData, tab: numb
       <TabPanel value={this.state.tab} index={1}>
       <PlotWrapper groupData={this.state.groupData}/>
       </TabPanel>
-        
+
         <br/>
         <Card>
           <EntryTable entries={entriesFlat} groupData={this.state.groupData} />

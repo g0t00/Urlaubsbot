@@ -1,18 +1,20 @@
 import * as EventEmitter from 'events';
-import {ContextMessageUpdate, Markup} from 'telegraf';
+import { Markup} from 'telegraf';
 import { v1 as uuid } from 'uuid';
 import {app} from './app';
+import { TelegrafContext } from 'telegraf/typings/context';
 export interface IButton {
   text: string;
   clicked: () => Promise<boolean>;
 }
 export class CallbackHandler {
   constructor() {
+
     // console.log('const');
   }
   callbackEmitter = new EventEmitter();
   responseEmitter = new EventEmitter();
-  async handle(ctx: ContextMessageUpdate) {
+  async handle(ctx: TelegrafContext) {
     // console.log(this, 'This', ctx.callbackQuery);
     if (ctx.callbackQuery && ctx.callbackQuery.data) {
       const match = ctx.callbackQuery.data.match(/([^%]+)%([^%]+)%([^%]+)/);
@@ -21,7 +23,7 @@ export class CallbackHandler {
       }
     }
   }
-  async handleMessage(ctx: ContextMessageUpdate) {
+  async handleMessage(ctx: TelegrafContext) {
     // console.log(ctx.update);
     if (ctx.update.message && ctx.update.message.reply_to_message) {
       this.responseEmitter.emit('response', ctx.update.message.reply_to_message.chat.id, ctx.update.message.reply_to_message.message_id, ctx.update.message.text, ctx.update.message.message_id);
@@ -35,7 +37,7 @@ export class CallbackHandler {
         return Markup.callbackButton(button.text, keyboardUuid + '%' + index + '%' + index2);
       });
     });
-    this.callbackEmitter.once(keyboardUuid, async (index: number, index2: number, ctx: ContextMessageUpdate) => {
+    this.callbackEmitter.once(keyboardUuid, async (index: number, index2: number, ctx: TelegrafContext) => {
       console.log('asd', index, index2);
       const clickHandler = button2d[index][index2].clicked;
       if (ctx.callbackQuery && ctx.callbackQuery.message && await clickHandler()) {

@@ -2,3 +2,5 @@ node_modules
 db.blub
 session.db
 dist
+data
+dump

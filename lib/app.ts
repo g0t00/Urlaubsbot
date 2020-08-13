@@ -1,36 +1,40 @@
 import Telegraf from 'telegraf';
-import { ContextMessageUpdate, Markup, Middleware } from 'telegraf';
+import { Markup, Middleware } from 'telegraf';
 import { connect } from 'mongoose';
 import { addMiddleware } from './add';
-import * as cron from 'cron';
 import * as express from 'express';
 import { callbackHandler, IButton } from './callback-handler';
-connect('mongodb://db:v6RB5Al0M27Z4kH@ds039311.mlab.com:39311/urlaubsbot', { useNewUrlParser: true });
+connect('mongodb://mongo/urlaubsbot', { useNewUrlParser: true });
 const AsciiTable = require('ascii-table');
 
 import { web } from './web';
 import { GroupModel } from './group';
 import { PaypalMappingModel } from './paypalMapping';
 // import { Sheet } from'./sheet';
+if (typeof process.env.TOKEN !== 'string') {
+  throw new Error('Token not set!');
+}
 class App {
   express: express.Application;
-  bot: Telegraf<ContextMessageUpdate>;
 
+  bot = new Telegraf(process.env.TOKEN as string);
   url: string;
-  constructor()  {
+  constructor() {
     let webHook = false;
     let port: number;
     process.chdir(__dirname);
-    if (process.env.BOT_ENV === 'MACBOOK') {
-      port = 61237;
-      this.bot = new Telegraf('***REMOVED***');
-      this.url = 'http://127.0.0.1:61237/';
-    } else {
-      port = 61239;
-      this.bot = new Telegraf('***REMOVED***');
-      this.url = 'https://anton-schulte.de/urlaub2/';
-      webHook = true;
-    }
+    // if (process.env.BOT_ENV === 'MACBOOK') {
+    //   port = 61237;
+    //   this.bot = new Telegraf('***REMOVED***');
+    //   this.url = 'http://127.0.0.1:61237/';
+    // } else {
+    //   port = 61239;
+    //   this.bot = new Telegraf('***REMOVED***');
+    //   this.url = 'https://anton-schulte.de/urlaub2/';
+    //   webHook = true;
+    // }
+    port = parseInt(process.env.PORT ?? '3000');
+    this.url = `http://127.0.0.1:${port}/`;
     this.bot.telegram.getMe().then(botInfo => {
       console.log(botInfo);
       (this.bot as any).options.username = botInfo.username;
@@ -40,7 +44,6 @@ class App {
     this.express.set('views', '../views');
 
     this.express.use('/client', express.static('../client'));
-    this.express.use('/client/node_modules', express.static('../node_modules'));
 
     this.express.get('/', (_req, res) => {
       res.send('Hello World!');
@@ -54,13 +57,13 @@ class App {
       // this.bot.telegram.setWebhook('');
       this.bot.startPolling();
     }
-    this.bot.use((addMiddleware as unknown) as Middleware<ContextMessageUpdate>);
+    this.bot.use((addMiddleware as unknown) as Middleware<any>);
     this.express.listen(port, () => {
       console.log('express listening on port', port);
     });
     this.express.use(express.json());
     this.express.use(express.urlencoded({ extended: true }));
-    this.express.use('/font-awesome', express.static('./node_modules/@fortawesome/fontawesome-free'));
+    this.express.use('/font-awesome', express.static('./client/node_modules/@fortawesome/fontawesome-free'));
     this.express.use('/group', web.router);
     // this.bot.use((ctx, next) => {
     //   ctx.groupObj = GroupModel.find({telegramId: ctx.chat.id});
@@ -69,23 +72,23 @@ class App {
     //   });
     // });
     this.bot.on('message', async ({ chat, reply, message }, next) => {
-        // reply('mesesage');
-        if (!chat || !chat.id || !message || !message.from) {
-          reply('WTF');
-          return;
-        }
-        const from = message.from;
-        let groupObj = await GroupModel.findOne({ telegramId: chat.id });
+      // reply('mesesage');
+      if (!chat || !chat.id || !message || !message.from) {
+        reply('WTF');
+        return;
+      }
+      const from = message.from;
+      let groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
-        if (!groupObj) {
-          groupObj = new GroupModel();
-          groupObj.name = chat.title || '';
-          groupObj.telegramId = chat.id;
-          await groupObj.save();
-        }
+      if (!groupObj) {
+        groupObj = new GroupModel();
+        groupObj.name = chat.title || '';
+        groupObj.telegramId = chat.id;
+        await groupObj.save();
+      }
       if (!groupObj.members.find(member => member.id === from.id) && !groupObj.groupBannedUsers.find(member => member.id === from.id)) {
-          await groupObj.addMember(message.from.first_name, message.from.id)
-        }
+        await groupObj.addMember(message.from.first_name, message.from.id)
+      }
 
       if (next) {
         next();
@@ -104,7 +107,7 @@ class App {
         await groupObj.save();
         reply('Neue Gruppe angelegt: ' + groupObj.name);
       }
-      for (const member of (message.new_chat_members || [])) {
+      for (const member of (message.new_chat_members || [])) {
         if (member.is_bot === false) {
           groupObj.addMember(member.first_name, member.id);
         }
@@ -112,7 +115,7 @@ class App {
 
       groupObj.addMember(message.from.first_name, message.from.id);
     });
-    this.bot.on('new_chat_title', async ({chat, reply}) => {
+    this.bot.on('new_chat_title', async ({ chat, reply }) => {
       if (chat && chat.title) {
         const groupObj = await GroupModel.findOne({ telegramId: chat.id });
         if (groupObj) {
@@ -135,7 +138,7 @@ class App {
         return;
       }
       // reply(JSON.stringify(message.new_chat_members));
-      for (const member of (message.new_chat_members || [])) {
+      for (const member of (message.new_chat_members || [])) {
         if (member.is_bot === false && !groupObj.members.find(memberSearch => member.id === memberSearch.id) && !groupObj.groupBannedUsers.find(memberSearch => member.id === memberSearch.id)) {
           groupObj.addMember(member.first_name, member.id);
         }
@@ -188,11 +191,11 @@ class App {
         ctx.reply('Not in group / none initialized group');
       }
     });
-    this.bot.command('test', async({message, reply}) => {
+    this.bot.command('test', async ({ message, reply }) => {
       if (!message || !message.text) {
         return;
       }
-      for (const entity of (message.entities || [])) {
+      for (const entity of (message.entities || [])) {
         if (entity.type === 'mention') {
           reply(message.text.substr(entity.offset, entity.length));
         }
@@ -245,7 +248,7 @@ class App {
       replyWithHTML(`<a href="${this.url}client/index.html#${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
     });
 
-    this.bot.command('summary', async ({ chat, reply, replyWithHTML, replyWithPhoto}) => {
+    this.bot.command('summary', async ({ chat, reply, replyWithHTML, replyWithPhoto }) => {
       if (!chat || !chat.id) {
         return;
       }
@@ -258,7 +261,7 @@ class App {
       const table = await groupObj.getSummaryTable();
       replyWithHTML('<code>' + table + '</code>');
     });
-    this.bot.command('transactions', async ({chat, reply, replyWithHTML}) => {
+    this.bot.command('transactions', async ({ chat, reply, replyWithHTML }) => {
       if (!chat || !chat.id) {
         return;
       }
@@ -277,7 +280,7 @@ class App {
       // })
       // replyWithHTML('<code>' + table.toString() + '</code>');
     });
-    this.bot.command('setpaypal', async ({chat, reply, message}) => {
+    this.bot.command('setpaypal', async ({ chat, reply, message }) => {
       if (!chat || !chat.id || !message || !message.text || !message.from) {
         return;
       }
@@ -286,9 +289,9 @@ class App {
         return reply('No Paypal Link found' + message.text);
       }
       const paypalLink = 'https://www.paypal.me/' + paypalLinkMatch[1];
-      const mapping = await PaypalMappingModel.findOne({telegramId: message.from.id});
+      const mapping = await PaypalMappingModel.findOne({ telegramId: message.from.id });
       if (!mapping) {
-        const doc = new PaypalMappingModel({telegramId: message.from.id, link: paypalLink});
+        const doc = new PaypalMappingModel({ telegramId: message.from.id, link: paypalLink });
         await doc.save();
         return reply('Paypal Link set to: ' + doc.link);
       } else {
@@ -298,7 +301,7 @@ class App {
       }
     })
     this.bot.command('setcurrency', async ({ message, reply, chat }) => {
-      if (!chat || !chat.id ||  !message ||  !message.text ||  !message.entities) {
+      if (!chat || !chat.id || !message || !message.text || !message.entities) {
         return;
       }
 
@@ -344,7 +347,7 @@ class App {
       replyWithHTML(await group.getMemberinfo(message.from.id));
     });
     this.bot.command('remove', async ({ reply, message, chat }) => {
-      if (!chat || !chat.id ||  !message || !message.from) {
+      if (!chat || !chat.id || !message || !message.from) {
         return;
       }
       const memberId = message.from.id;
@@ -370,7 +373,7 @@ class App {
       });
       buttons.push([{
         text: 'Cancel',
-        clicked: async () => { return true;}
+        clicked: async () => { return true; }
       }]);
 
       const keyboard = callbackHandler.getKeyboard(buttons);
@@ -382,7 +385,7 @@ class App {
         // .extra()
       });
     });
-    this.bot.command('kick', async ({reply, chat}) => {
+    this.bot.command('kick', async ({ reply, chat }) => {
       if (!chat) {
         return;
       }
@@ -414,7 +417,7 @@ class App {
       });
       buttons.push([{
         text: 'Cancel',
-        clicked: async () => { return true;}
+        clicked: async () => { return true; }
       }]);
       const keyboard = callbackHandler.getKeyboard(buttons);
       return reply('Please select member to kick:', {
@@ -426,7 +429,7 @@ class App {
       });
     });
     this.bot.command('editdescription', async ({ reply, message, chat }) => {
-      if (!chat || !chat.id ||  !message || !message.from) {
+      if (!chat || !chat.id || !message || !message.from) {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
@@ -457,7 +460,7 @@ class App {
       });
       buttons.push([{
         text: 'Cancel',
-        clicked: async () => { return true;}
+        clicked: async () => { return true; }
       }]);
       const keyboard = callbackHandler.getKeyboard(buttons);
       return reply('Please select entry to edit description of:', {
@@ -468,124 +471,126 @@ class App {
         // .extra()
       });
     });
-    this.bot.command('numbers', ({reply, chat, telegram}) => {
-      (async () => {if (!chat) {
-        return;
-      }
-      // return;
-      let done = false;
-      let addNumber = '';
-      let message_id: number;
-      while (!done) {
-        await new Promise(async resolve => {
-          console.log(addNumber, 'a');
-          let numbers = [[1, 2, 3], [4,5,6], [7,8,9], [0,'.']];
-          const buttons: IButton[][] = numbers.map(numbersRow => numbersRow.map(number => {
-            return {
-              text: String(number),
+    this.bot.command('numbers', ({ reply, chat, telegram }) => {
+      (async () => {
+        if (!chat) {
+          return;
+        }
+        // return;
+        let done = false;
+        let addNumber = '';
+        let message_id: number;
+        while (!done) {
+          await new Promise(async resolve => {
+            console.log(addNumber, 'a');
+            let numbers = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [0, '.']];
+            const buttons: IButton[][] = numbers.map(numbersRow => numbersRow.map(number => {
+              return {
+                text: String(number),
+                clicked: async () => {
+                  addNumber += String(number);
+                  console.log('added', number);
+                  resolve();
+                  return false;
+                }
+              };
+            }))
+            buttons.push([{
+              text: 'Done',
               clicked: async () => {
-                addNumber += String(number);
-                console.log('added', number);
+                done = true;
+                resolve();
+                return true;
+              }
+            }, {
+              text: 'Del',
+              clicked: async () => {
+                addNumber = addNumber.substr(0, addNumber.length - 1);
                 resolve();
                 return false;
               }
-            };
-          }))
-          buttons.push([{
-            text: 'Done',
-            clicked: async () => {
-              done = true;
-              resolve();
-              return true;
-            }
-          }, {
-            text: 'Del',
-            clicked: async () => {
-              addNumber = addNumber.substr(0, addNumber.length - 1);
-              resolve();
-              return false;
-            }
-          }]);
-          const keyboard = callbackHandler.getKeyboard(buttons);
-          // if (message_id) {
-          //   // await telegram.editMessageReplyMarkup(chat.id, message_id, undefined, {
-          //   //   reply_markup:
-          //   //     Markup.inlineKeyboard(keyboard)
-          //   // } as any);
-          //
-          // } else {
+            }]);
+            const keyboard = callbackHandler.getKeyboard(buttons);
+            // if (message_id) {
+            //   // await telegram.editMessageReplyMarkup(chat.id, message_id, undefined, {
+            //   //   reply_markup:
+            //   //     Markup.inlineKeyboard(keyboard)
+            //   // } as any);
+            //
+            // } else {
             const resp = await telegram.sendMessage(chat.id, `Add numbers: current input ${addNumber}`, {
               reply_markup:
-              Markup.inlineKeyboard(keyboard)
+                Markup.inlineKeyboard(keyboard)
             });
             message_id = resp.message_id;
 
-          // }
-        });
-      }
-      reply('Number: ' + addNumber);})();
+            // }
+          });
+        }
+        reply('Number: ' + addNumber);
+      })();
     });
-      this.bot.command('editamount', async ({ reply, message, chat }) => {
-        if (!chat || !chat.id ||  !message || !message.from) {
-          return;
-        }
-        const groupObj = await GroupModel.findOne({ telegramId: chat.id });
+    this.bot.command('editamount', async ({ reply, message, chat }) => {
+      if (!chat || !chat.id || !message || !message.from) {
+        return;
+      }
+      const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
-        if (!groupObj) {
-          reply('Not in group / none initialized group');
-          return;
-        }
+      if (!groupObj) {
+        reply('Not in group / none initialized group');
+        return;
+      }
 
-        const member = groupObj.getMemberById(message.from.id);
-        if (!member) {
-          return reply('Did not find user!');
-        }
-        const buttons: IButton[][] = member.entries.map(entry => {
-          return [{
-            text: entry.description + ': ' + entry.amount,
-            clicked: async () => {
-              const replyObj = await reply('Please enter new Amount.', {
+      const member = groupObj.getMemberById(message.from.id);
+      if (!member) {
+        return reply('Did not find user!');
+      }
+      const buttons: IButton[][] = member.entries.map(entry => {
+        return [{
+          text: entry.description + ': ' + entry.amount,
+          clicked: async () => {
+            const replyObj = await reply('Please enter new Amount.', {
+              reply_markup: { force_reply: true, selective: true }
+            });
+            const oldAmount = entry.amount;
+            let newAmount = parseFloat((await callbackHandler.getReply(chat.id, replyObj.message_id)).replace(',', '.'));
+            while (!Number.isFinite(newAmount)) {
+              const replyObj = await reply('Could not parse amount! Please retry.', {
                 reply_markup: { force_reply: true, selective: true }
               });
-              const oldAmount = entry.amount;
-              let newAmount = parseFloat((await callbackHandler.getReply(chat.id, replyObj.message_id)).replace(',', '.'));
-              while (!Number.isFinite(newAmount)) {
-                const replyObj = await reply('Could not parse amount! Please retry.', {
-                  reply_markup: { force_reply: true, selective: true }
-                });
-                newAmount = parseFloat((await callbackHandler.getReply(chat.id, replyObj.message_id)).replace(',', '.'));
+              newAmount = parseFloat((await callbackHandler.getReply(chat.id, replyObj.message_id)).replace(',', '.'));
 
-              }
-              entry.amount = newAmount;
-              await groupObj.save();
-              await reply(`Changed Entry: ${entry.description}: ${oldAmount} -> ${entry.amount}`);
-              return true;
             }
-          }];
-        });
-        buttons.push([{
-          text: 'Cancel',
-          clicked: async () => {return true}
-        }]);
+            entry.amount = newAmount;
+            await groupObj.save();
+            await reply(`Changed Entry: ${entry.description}: ${oldAmount} -> ${entry.amount}`);
+            return true;
+          }
+        }];
+      });
+      buttons.push([{
+        text: 'Cancel',
+        clicked: async () => { return true }
+      }]);
 
-        const keyboard = callbackHandler.getKeyboard(buttons);
-        return reply('Please select entry to edit amount of:', {
-          reply_markup:
-            Markup.inlineKeyboard(keyboard)
-          // .oneTime()
-          // .resize()
-          // .extra()
-        });
+      const keyboard = callbackHandler.getKeyboard(buttons);
+      return reply('Please select entry to edit amount of:', {
+        reply_markup:
+          Markup.inlineKeyboard(keyboard)
+        // .oneTime()
+        // .resize()
+        // .extra()
       });
+    });
 
-      (this.bot as any).action(/./, (ctx: any) => {
-        return callbackHandler.handle(ctx);
-      });
-      this.bot.on('message', (ctx) => {
-        callbackHandler.handleMessage(ctx);
-      });
-      this.bot.command('help', ({ reply }) => {
-        const str = `/initializegroup - initialize group, so bot knows it;
+    (this.bot as any).action(/./, (ctx: any) => {
+      return callbackHandler.handle(ctx);
+    });
+    this.bot.on('message', (ctx) => {
+      callbackHandler.handleMessage(ctx);
+    });
+    this.bot.command('help', ({ reply }) => {
+      const str = `/initializegroup - initialize group, so bot knows it;
     /newmember - adds yourself to group.
     /newmembernotelegram - adds a member who has no telegram
     /summary - get summary.
@@ -604,13 +609,13 @@ class App {
     /transactions - Get Transactions
     /editdescription - Edit Description of entry
     /kick - Kick User`;
-        const help = str.split('\n');
-        help.sort();
-        reply("test");
-        console.log('test');
-        reply(help.join('\n'));
-      });
-    }
+      const help = str.split('\n');
+      help.sort();
+      reply("test");
+      console.log('test');
+      reply(help.join('\n'));
+    });
+  }
 }
 
-  export const app = new App();
+export const app = new App();

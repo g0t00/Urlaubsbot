@@ -1,0 +1,1 @@
+../../lib/interfaces.ts

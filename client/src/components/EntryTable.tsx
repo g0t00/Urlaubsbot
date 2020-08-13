@@ -1,5 +1,5 @@
 import { IEntryFlat } from './Group'
-import { IGroupData } from '../../../lib/interfaces'
+import { IGroupData } from '../interfaces'
 
 import { Grid, Table, TableHeaderRow, TableEditRow, TableEditColumn,  } from '@devexpress/dx-react-grid-material-ui';
 import {
@@ -27,7 +27,7 @@ import Chip from '@material-ui/core/Chip';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
-import { MuiPickersUtilsProvider, DateTimePicker } from 'material-ui-pickers';
+import { MuiPickersUtilsProvider, DateTimePicker } from '@material-ui/pickers';
 import MomentUtils from '@date-io/moment';
 
 

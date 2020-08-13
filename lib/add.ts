@@ -1,9 +1,10 @@
-import {Composer, ContextMessageUpdate, Markup} from 'telegraf';
+import {Composer, Markup} from 'telegraf';
 import {app} from './app';
 import {Member} from './member';
 import { GroupModel} from './group';
 import {v1 as uuidv1} from 'uuid';
 import {callbackHandler} from './callback-handler';
+import { TelegrafContext } from 'telegraf/typings/context';
 export const addMiddleware = new Composer();
 addMiddleware.command('add', ctx => {
   add(ctx, false);
@@ -24,7 +25,7 @@ addMiddleware.command('addotherforeign', ctx => {
   addOther(ctx, true);
 });
 const selective = false;
-async function addOther({message, reply, chat, telegram}: ContextMessageUpdate, useForeign: boolean) {
+async function addOther({message, reply, chat, telegram}: TelegrafContext, useForeign: boolean) {
   if (!chat || !message || !message.text || !message.entities || !message.from) {
     return;
   }
@@ -35,7 +36,7 @@ async function addOther({message, reply, chat, telegram}: ContextMessageUpdate, 
     return;
   }
   const messageText = message.text.substr(message.entities[0].length + 1);
-  let matches = messageText.match(/\d+[.,]?\d*/);
+  let matches = messageText.match(/(-\s?)?\d+[.,]?\d*/);
   while (!matches) {
     const replyObj = await reply(`No Amount found! Reply With Amount please.@${message.from.username}`, {
       reply_markup: {force_reply: true, selective: true}
@@ -80,7 +81,7 @@ async function addOther({message, reply, chat, telegram}: ContextMessageUpdate, 
     .inlineKeyboard(keyboard)
   });
 };
-async function add({reply, chat, message, replyWithMarkdown}: ContextMessageUpdate, useForeign: boolean) {
+async function add({reply, chat, message, replyWithMarkdown}: TelegrafContext, useForeign: boolean) {
   if (!chat || !message || !message.from || !message.entities) {
     return reply('nope');
   }
@@ -135,7 +136,8 @@ async function add({reply, chat, message, replyWithMarkdown}: ContextMessageUpda
     }
   } else {
     messageText = message.text.substr(message.entities[0].length + 1);
-    let matches = messageText.match(/\d+[.,]?\d*/);
+    let matches = messageText.match(/(-\s?)?\d+[.,]?\d*/);
+
     while (!matches) {
       const replyObj = await reply(`No Amount found! Reply With Amount please.@${message.from.username}`, {
         reply_markup: {force_reply: true, selective: true}
@@ -164,7 +166,7 @@ async function add({reply, chat, message, replyWithMarkdown}: ContextMessageUpda
     reply('Error while adding!');
   }
 };
-async function addPartial({reply, chat, message, telegram}: ContextMessageUpdate, useForeign: boolean) {
+async function addPartial({reply, chat, message, telegram}: TelegrafContext, useForeign: boolean) {
   if (!chat || !message || !message.from || !message.entities) {
     return reply('nope');
   }

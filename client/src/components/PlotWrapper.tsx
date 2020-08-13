@@ -1,5 +1,5 @@
 import * as React from "react";
-import { IGroupData, IMember, IEntry, IGroupMemberChange } from '../../../lib/interfaces'
+import { IGroupData, IMember, IEntry, IGroupMemberChange } from '../interfaces'
 
 import Plot from "react-plotly.js";
 interface IProps {
@@ -15,7 +15,7 @@ export class PlotWrapper extends React.Component<IProps, IState> {
       showPlot: false
     };
   }
-  
+
   render() {
     const entries = this.props.groupData.members.map((member, index) => member.entries).flat();
     const entriesTargets = [];
@@ -38,7 +38,7 @@ export class PlotWrapper extends React.Component<IProps, IState> {
          label,
          color: colors.slice(0, this.props.groupData.members.length + 1).concat(this.props.groupData.members.map((member, index) => member.entries.map(entry => colors[index])).flat())
             },
-      
+
         link: {
           source: [...Array(this.props.groupData.members.length).keys()].concat(Array(entriesTargets.length).fill(this.props.groupData.members.length)),
           target: Array(this.props.groupData.members.length).fill((this.props.groupData.members.length)).concat(entriesTargets),
@@ -47,8 +47,8 @@ export class PlotWrapper extends React.Component<IProps, IState> {
       },
     ] as any;
     console.log(data);
-    
-    
+
+
     var layout = {
       title: "Basic Sankey",
       font: {
