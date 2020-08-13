@@ -18,7 +18,6 @@ COPY --chown=node:node package-lock.json /home/node/app/package-lock.json
 WORKDIR /home/node/app
 RUN npm ci
 COPY --chown=node:node lib lib
-RUN ls
 COPY --chown=node:node tsconfig.json tsconfig.json
 RUN npm run build
 # COPY views views
