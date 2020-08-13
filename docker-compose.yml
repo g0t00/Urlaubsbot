@@ -2,15 +2,28 @@ version: '2.0'
 services:
   app:
     build: .
-    ports:
-    - "3000:3000"
+    container_name: urlaubsbot
+    restart: always
     depends_on:
     - mongo
     environment:
       - PORT=3000
       - TOKEN=***REMOVED***
-      - HOST=http://127.0.0.1:3000
+      - HOST=http://urlaubsbot.niklas-schelten.de
+    networks:
+      - urlaubsbot
+      - system-proxy_default
+
   mongo:
     image: mongo:4.4.0-bionic
+    restart: always
     volumes:
       - ./data:/data/db
+    networks:
+      - urlaubsbot
+
+networks:
+  urlaubsbot:
+    driver: bridge
+  system-proxy_default:
+    external: true
