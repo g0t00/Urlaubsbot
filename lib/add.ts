@@ -151,7 +151,7 @@ async function add({reply, chat, message, replyWithMarkdown}: TelegrafContext, u
       reply('Could not parse Amount!');
       return;
     }
-    description = messageText.replace(/\d+[.,]?\d*/, '').trim();
+    description = messageText.replace(/(-\s?)?\d+[.,]?\d*/, '').trim();
     if (description === '') {
       description = 'no desc';
     }
@@ -220,7 +220,7 @@ async function addPartial({reply, chat, message, telegram}: TelegrafContext, use
     }
   } else {
     messageText = message.text.substr(message.entities[0].length + 1);
-    let matches = messageText.match(/\d+[.,]?\d*/);
+    let matches = messageText.match(/(-\s?)?\d+[.,]?\d*/);
     while (!matches) {
       const replyObj = await reply(`No Amount found! Reply With Amount please. @${message.from.username}`, {
         reply_markup: {force_reply: true, selective: true}
@@ -240,7 +240,7 @@ async function addPartial({reply, chat, message, telegram}: TelegrafContext, use
       }
       amount /= group.currency;
     }
-    description = messageText.replace(/\d+[.,]?\d*/, '').trim();
+    description = messageText.replace(/(-\s?)?\d+[.,]?\d*/, '').trim();
     if (description === '') {
       description = 'no desc';
     }
