@@ -21,6 +21,7 @@
     "@material-ui/styles": "^3.0.0-alpha.10",
     "@types/react-dom": "^16.9.8",
     "@types/react-plotly.js": "^2.2.4",
+    "moment": "^2.27.0",
     "plotly.js": "^1.54.7",
     "react-dom": "^16.13.1",
     "react-plotly.js": "^2.4.0",

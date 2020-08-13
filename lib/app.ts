@@ -34,7 +34,7 @@ class App {
     //   webHook = true;
     // }
     port = parseInt(process.env.PORT ?? '3000');
-    this.url = `http://127.0.0.1:${port}/`;
+    this.url = process.env.HOST ?? `http://localhost:${port}`;
     this.bot.telegram.getMe().then(botInfo => {
       console.log(botInfo);
       (this.bot as any).options.username = botInfo.username;
@@ -50,7 +50,7 @@ class App {
     });
     if (webHook) {
       this.express.use(this.bot.webhookCallback('/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4'));
-      this.bot.telegram.setWebhook(this.url + 'AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
+      this.bot.telegram.setWebhook(this.url + '/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
       this.bot.telegram.webhookReply = false
     } else {
       console.log('starting Polling');
@@ -245,7 +245,7 @@ class App {
       if (!groupObj) {
         return reply('Not in group / none initialized group');
       }
-      replyWithHTML(`<a href="${this.url}client/index.html#${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
+      replyWithHTML(`<a href="${this.url}/client/index.html#${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
     });
 
     this.bot.command('summary', async ({ chat, reply, replyWithHTML, replyWithPhoto }) => {
