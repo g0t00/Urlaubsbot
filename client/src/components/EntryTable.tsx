@@ -22,7 +22,6 @@ import Select from '@material-ui/core/Select';
 import Input from '@material-ui/core/Input';
 import MenuItem from '@material-ui/core/MenuItem';
 import FormControl from '@material-ui/core/FormControl';
-import InputLabel from '@material-ui/core/InputLabel';
 import Chip from '@material-ui/core/Chip';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
@@ -151,7 +150,6 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
   }
 
   payerEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange }) => {
-    console.log(this, 'propsB');
     return (
       <div>
 
@@ -170,7 +168,6 @@ export class EntryTable extends React.Component<IEntryTableProps, {deleteDialogO
       </div>
     )};
   payerTypeProvider: React.ComponentType<DataTypeProviderProps> = props => {
-    console.log(this, 'propsA');
     return (
       <DataTypeProvider
       editorComponent={this.payerEditor}

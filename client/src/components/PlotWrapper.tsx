@@ -1,7 +1,12 @@
 import * as React from "react";
 import { IGroupData, IMember, IEntry, IGroupMemberChange } from '../interfaces'
-
-import Plot from "react-plotly.js";
+const Plotly = require('plotly.js/lib/core');
+Plotly.register([
+  require('plotly.js/lib/sankey'),
+]);
+import createPlotlyComponent from 'react-plotly.js/factory';
+console.log(Plotly, 'Plotly');
+const Plot = createPlotlyComponent(Plotly);
 interface IProps {
   groupData: IGroupData
 };

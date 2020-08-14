@@ -17,7 +17,7 @@ import {EntryTable} from './EntryTable';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
-import { MuiPickersUtilsProvider, TimePicker, DatePicker } from '@material-ui/pickers';
+import { MuiPickersUtilsProvider, DatePicker } from '@material-ui/pickers';
 import MomentUtils from '@date-io/moment';
 import {PlotWrapper} from './PlotWrapper';
 
@@ -67,7 +67,6 @@ export class Group extends React.Component<{}, {groupData: IGroupData, tab: numb
           }
         }
       }
-      console.log(json, 'eventsource');
 
       this.setState({
         groupData: json
@@ -76,17 +75,6 @@ export class Group extends React.Component<{}, {groupData: IGroupData, tab: numb
     source.onerror = (evt) => {
       console.log(evt, 'event');
     }
-    // const response = await fetch('/group/' + this.groupId);
-    // const json = await response.json();
-    // for (const member of json.members) {
-    //   for (const entry of member.entries) {
-    //     entry.time = new Date(entry.time);
-    //   }
-    // }
-    // this.setState({
-    //   groupData: await json as IGroupData
-    // });
-    // console.log(this.state.groupData);
   }
   componentDidMount () {
     this.groupId = window.location.hash.replace(/^#/, '');

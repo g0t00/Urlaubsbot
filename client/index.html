@@ -8,19 +8,11 @@
         <div id="example"></div>
 
         <!-- Dependencies -->
-        <script src="./node_modules/react/umd/react.development.js"></script>
-        <script src="./node_modules/react-dom/umd/react-dom.development.js"></script>
-        <script src="./node_modules/plotly.js/dist/plotly-basic.min.js"></script>
+        <script src="./node_modules/react/umd/react.production.min.js"></script>
+        <script src="./node_modules/react-dom/umd/react-dom.production.min.js"></script>
         <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500">
         <link rel="stylesheet" href="./style.css">
         <!-- Main -->
         <script src="./dist/bundle.js"></script>
-        <!-- <script async src="https://telegram.org/js/telegram-widget.js?5" data-telegram-login="urlaub20bot" data-size="medium" data-onauth="onTelegramAuth(user)"></script> -->
-        <script type="text/javascript">
-          function onTelegramAuth(user) {
-            localStorage.setItem('user', JSON.stringify(user));
-            window.location.reload();
-          }
-        </script>
     </body>
 </html>

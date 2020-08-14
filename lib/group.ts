@@ -81,6 +81,7 @@ export class Group {
   };
 
   async evaluate(this: DocumentType<Group>): Promise<IGroupData> {
+    console.time('evaluate');
     const members = this.members.map(member => {
       let hasPayed = 0;
       let toPay = 0;
@@ -185,6 +186,7 @@ export class Group {
     if (overrun === 100) {
       console.error(`overrun`);
     }
+    console.timeEnd('evaluate');
     return {
       id: this.id,
       name: this.name || '',

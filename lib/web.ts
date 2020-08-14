@@ -9,7 +9,6 @@ export class Web {
   router: express.Router;
   emitter = new EventEmitter();
   async authorize(req: any, res: any, next: () => void) {
-    console.log('test');
     next();
     return;
     let user: any;
