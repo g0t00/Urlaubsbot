@@ -10,6 +10,7 @@ services:
       - PORT=3000
       - TOKEN=***REMOVED***
       - HOST=http://urlaubsbot.niklas-schelten.de
+      - NODE_ENV=production
     networks:
       - urlaubsbot
       - system-proxy_default

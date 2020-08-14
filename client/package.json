@@ -4,7 +4,8 @@
   "description": "",
   "main": "webpack.config.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build-watch": "webpack -w"
   },
   "author": "",
   "license": "ISC",
@@ -32,6 +33,7 @@
     "awesome-typescript-loader": "^5.2.1",
     "source-map-loader": "^1.0.1",
     "webpack": "^4.44.1",
+    "webpack-bundle-analyzer": "^3.8.0",
     "webpack-cli": "^3.3.12"
   }
 }

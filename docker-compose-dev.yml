@@ -9,13 +9,21 @@ services:
     environment:
       - PORT=3000
       - TOKEN=***REMOVED***
+      - HOST=http://127.0.0.1:3000
     volumes:
       - ./:/home/node/app
-    command: node dist/app.js
+    working_dir: /home/node/app
+    command: nodemon dist/app.js
   build:
     build: ./dev-env
     volumes:
       - ./:/home/node/app
+    command: npm run build-watch
+  build-client:
+    build: ./dev-env
+    volumes:
+      - ./:/home/node/app
+    # working_dir: /home/node/app/client
     command: npm run build-watch
   mongo:
     image: mongo:4.4.0-bionic

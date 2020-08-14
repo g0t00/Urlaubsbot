@@ -1,12 +1,11 @@
-;
 export interface IGroupData {
-  members: IMember [];
+  members: IMember[];
   name: string;
   id: number;
   dayMode: boolean;
   transactions: ITransaction[];
 }
-export interface IMember {
+export interface IMember {
   id: number;
   name: string;
   toPay: number;
