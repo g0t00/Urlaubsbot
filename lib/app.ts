@@ -54,7 +54,7 @@ class App {
       this.bot.telegram.webhookReply = false
     } else {
       console.log('starting Polling');
-      // this.bot.telegram.setWebhook('');
+      this.bot.telegram.setWebhook('');
       this.bot.startPolling();
     }
     this.bot.use((addMiddleware as unknown) as Middleware<any>);

@@ -8,8 +8,10 @@ services:
     - mongo
     environment:
       - PORT=3000
+
+        #- TOKEN=***REMOVED***
       - TOKEN=***REMOVED***
-      - HOST=http://urlaubsbot.niklas-schelten.de
+      - HOST=https://urlaubsbot.niklas-schelten.de
       - NODE_ENV=production
     networks:
       - urlaubsbot
