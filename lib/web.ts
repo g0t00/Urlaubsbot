@@ -1,10 +1,10 @@
-import {createHash, createHmac} from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import * as express from 'express';
 import { app } from './app';
 import { GroupModel } from './group';
 import * as EventEmitter from 'events';
-import {Entry} from './entry';
-import {IGroupMemberChange} from './interfaces'
+import { Entry } from './entry';
+import { IGroupMemberChange } from './interfaces'
 export class Web {
   router: express.Router;
   emitter = new EventEmitter();
@@ -15,7 +15,7 @@ export class Web {
     try {
       user = JSON.parse(req.get('Auth') || req.query.auth);
 
-    } catch(e) {
+    } catch (e) {
       res.send('no login found');
       console.log('no login found');
 
@@ -27,18 +27,18 @@ export class Web {
       return res.sendStatus(403).end();
     }
     const authData: any[] = [];
-    const {hash, ...data} = user;
+    const { hash, ...data } = user;
     const checkString = Object.keys(data)
-    .sort()
-    .map(k => `${k}=${data[k]}`)
-    .join('\n')
+      .sort()
+      .map(k => `${k}=${data[k]}`)
+      .join('\n')
 
     const token = (app.bot.telegram as any).token;
     const secret = createHash('sha256')
-    .update(token)
-    .digest();
+      .update(token)
+      .digest();
     const hmac = createHmac('sha256', secret)
-    .update(checkString);
+      .update(checkString);
     const hashCompare = hmac.digest('hex');
     // console.log((app.bot.telegram as any).token);
     // console.log(checkString);
@@ -67,25 +67,25 @@ export class Web {
         return;
       }
       res.writeHead(200, {
-       'Content-Type': 'text/event-stream',
-       'Cache-Control': 'no-cache',
-       'Connection': 'keep-alive'
-     });
-     const evaluation = await groupObj.evaluate();
-     res.write("data: " + JSON.stringify(evaluation) + "\n\n");
-     const handler = async () => {
-       const groupObj = await GroupModel.findById(id).exec();
-       if (!groupObj) {
-         return;
-       }
-       const evaluation = await groupObj.evaluate();
-       res.write("data: " + JSON.stringify(evaluation) + "\n\n");
-     };
-     this.emitter.on(id, handler);
-     setTimeout(() => {
-       this.emitter.removeListener(id, handler);
-       res.end();
-     }, 60000);
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      });
+      const evaluation = await groupObj.evaluate();
+      res.write("data: " + JSON.stringify(evaluation) + "\n\n");
+      const handler = async () => {
+        const groupObj = await GroupModel.findById(id).exec();
+        if (!groupObj) {
+          return;
+        }
+        const evaluation = await groupObj.evaluate();
+        res.write("data: " + JSON.stringify(evaluation) + "\n\n");
+      };
+      this.emitter.on(id, handler);
+      setTimeout(() => {
+        this.emitter.removeListener(id, handler);
+        res.end();
+      }, 60000);
     });
 
     this.router.get('/:id', this.authorize, async (req, res) => {
@@ -117,7 +117,7 @@ export class Web {
         res.send('did not find entry ' + req.params.entryUuid);
         return;
       }
-      const oldEntry: any = {description: entry.description, amount: entry.amount, partialGroupMembers: entry.partialGroupMembers, time: entry.time, endTime: entry.endTime};
+      const oldEntry: any = { description: entry.description, amount: entry.amount, partialGroupMembers: entry.partialGroupMembers, time: entry.time, endTime: entry.endTime };
       const oldOwner = groupObj.members.find(member => typeof member.entries.find(entrySearch => entrySearch.uuid === entry.uuid) !== 'undefined');
       // const oldEntry: any = {descrip...entry};
       for (const key of Object.keys(req.body)) {
@@ -153,14 +153,14 @@ export class Web {
               partialGroupNames.push('???');
             }
           }
-          return `<b>${entry.description}</b> (${entry.amount}€ ${(entry.partialGroupMembers && entry.partialGroupMembers.length > 0) ? partialGroupNames.join(',') : 'all'} ${entry.time && entry.time.toLocaleDateString()}${typeof entry.endTime  !== 'undefined' ? ` until ` + entry.endTime.toLocaleDateString(): ''})`;
+          return `<b>${entry.description}</b> (${entry.amount}€ ${(entry.partialGroupMembers && entry.partialGroupMembers.length > 0) ? partialGroupNames.join(',') : 'all'} ${entry.time && entry.time.toLocaleDateString()}${typeof entry.endTime !== 'undefined' ? ` until ` + entry.endTime.toLocaleDateString() : ''})`;
         }
         const newOwner = groupObj.members.find(member => typeof member.entries.find(entrySearch => entrySearch.uuid === entry.uuid) !== 'undefined');
 
-        await app.bot.telegram.sendMessage(groupObj.telegramId, `Changed Entry: \n${oldOwner && oldOwner.name}: ${parseEntry(oldEntry)} \n-> ${newOwner && newOwner.name}: ${parseEntry(entry)}`, {parse_mode: 'HTML'} as any);
+        await app.bot.telegram.sendMessage(groupObj.telegramId, `Changed Entry: \n${oldOwner && oldOwner.name}: ${parseEntry(oldEntry)} \n-> ${newOwner && newOwner.name}: ${parseEntry(entry)}`, { parse_mode: 'HTML' } as any);
 
         return res.json(true);
-      } catch(e) {
+      } catch (e) {
         console.error(e);
         res.status(500);
         return res.json(false);
@@ -204,7 +204,7 @@ export class Web {
     // });
     this.router.post('/:id/dayMode', this.authorize, async (req, res) => {
       const groupId = req.params.id;
-      const {dayMode} = req.body;
+      const { dayMode } = req.body;
       const groupObj = await GroupModel.findById(groupId);
       if (groupObj === null) {
         res.status(500);
@@ -212,13 +212,13 @@ export class Web {
       }
       groupObj.dayMode = dayMode;
       await groupObj.save();
-      await app.bot.telegram.sendMessage(groupObj.telegramId, `Changed Daymode to ${groupObj.dayMode}`, {parse_mode: 'HTML'} as any);
+      await app.bot.telegram.sendMessage(groupObj.telegramId, `Changed Daymode to ${groupObj.dayMode}`, { parse_mode: 'HTML' } as any);
 
       res.status(200).json(groupObj);
     })
     this.router.post('/:id', this.authorize, async (req, res) => {
       const groupId = req.params.id;
-      let {memberId, description = '', amount = '', partialGroupMembers = []} = req.body;
+      let { memberId, description = '', amount = '', partialGroupMembers = [] } = req.body;
       if (typeof amount === 'string') {
         amount = parseFloat(amount.replace(',', '.'));
 
@@ -278,7 +278,7 @@ export class Web {
         message = `Changed ${member.name} mode to partial Time start: ${member.start.toLocaleString()} end: ${member.end.toLocaleString()}`;
 
       }
-      await app.bot.telegram.sendMessage(groupObj.telegramId, message, {parse_mode: 'HTML'} as any);
+      await app.bot.telegram.sendMessage(groupObj.telegramId, message, { parse_mode: 'HTML' } as any);
 
       return res.json(member);
     })
