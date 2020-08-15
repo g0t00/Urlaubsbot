@@ -1,7 +1,7 @@
 export interface IGroupData {
   members: IMember[];
   name: string;
-  id: number;
+  id: string;
   dayMode: boolean;
   transactions: ITransaction[];
 }

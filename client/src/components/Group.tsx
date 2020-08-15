@@ -1,8 +1,9 @@
 import { IGroupData, IMember, IEntry, IGroupMemberChange } from '../interfaces'
-import {roundToCent} from '../util';
+import { roundToCent } from '../util';
 // import deepcopy from "ts-deepcopy";
 
 import * as React from "react";
+import { useEffect, useState } from "react";
 
 import Card from '@material-ui/core/Card';
 import CardContent from '@material-ui/core/CardContent';
@@ -13,15 +14,15 @@ import TableRow from '@material-ui/core/TableRow';
 import TableHead from '@material-ui/core/TableHead';
 import TableBody from '@material-ui/core/TableBody';
 import Typography from '@material-ui/core/Typography';
-import {EntryTable} from './EntryTable';
+import { EntryTable } from './EntryTable';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
 import { MuiPickersUtilsProvider, DatePicker } from '@material-ui/pickers';
 import MomentUtils from '@date-io/moment';
-import {PlotWrapper} from './PlotWrapper';
+import { PlotWrapper } from './PlotWrapper';
 
-import {API_BASE} from '../api';
+import { API_BASE } from '../api';
 import { AppBar, Tabs, Tab } from '@material-ui/core';
 export enum sortRows {
   description,
@@ -47,202 +48,204 @@ function TabPanel(props: any) {
 
 
 export interface IEntryFlat extends IEntry {
-    name: string;
+  name: string;
 }
-export class Group extends React.Component<{}, {groupData: IGroupData, tab: number}> {
-  groupId: string;
-  constructor(props: any) {
-    super(props);
-    this.state = {groupData: {name: 'Loading. Are you logged in?', members: [], id: 0, dayMode: false, transactions: []}, tab: 0};
+async function valueChanged(memberId: number, groupId: string, change: any) {
+  if (change.start) {
+    change.start = change.start.startOf('day');
   }
-  async loadData() {
-    let source = new EventSource(API_BASE + '/' + this.groupId + '/stream?auth=' + localStorage.getItem('user'));
-    source.onmessage = ({data}) => {
-      const json = JSON.parse(data);
-      for (const member of json.members) {
-        for (const entry of member.entries) {
-          entry.time = new Date(entry.time);
-          if (typeof entry.endTime !== 'undefined') {
-            entry.endTime = new Date(entry.endTime);
+  await fetch(API_BASE + '/' + groupId + '/member/' + String(memberId), {
+    method: 'POST',
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Auth": localStorage.getItem('user')
+      // "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: JSON.stringify(change)
+  });
+  console.log(memberId, change);
+}
+export function Member({ member, i, dayMode, groupId }: { member: IMember, i: number, dayMode: boolean, groupId: string }) {
+  return <Grid item xs={12} sm={6} md={3} key={i}>
+    <Card>
+      <CardContent>
+        <Typography gutterBottom variant="h5" component="h2">
+          {member.name}
+        </Typography>
+        <Table><TableBody>
+          {dayMode && <>
+            <TableRow>
+              <TableCell colSpan={2}><FormControlLabel
+                control={
+                  <Checkbox
+                    checked={member.allTime}
+                    onChange={event => valueChanged(member.id, groupId, { allTime: event.target.checked })}
+                    value="DayMode"
+                    color="primary"
+                  />
+                }
+                label="all time"
+              />
+              </TableCell>
+            </TableRow>
+            {member.allTime === false &&
+              <>
+                <TableRow>
+                  <TableCell>start: </TableCell><TableCell>
+
+                    <MuiPickersUtilsProvider utils={MomentUtils}>
+                      <DatePicker
+                        margin="normal"
+                        label=""
+                        value={member.start}
+                        onChange={event => valueChanged(member.id, groupId, { start: event })}
+                      />
+                    </MuiPickersUtilsProvider>
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>end: </TableCell>
+                  <TableCell><MuiPickersUtilsProvider utils={MomentUtils}>
+                    <DatePicker
+                      margin="normal"
+                      label=""
+                      value={member.end}
+                      onChange={event => valueChanged(member.id, groupId, { end: event })}
+                    />
+                  </MuiPickersUtilsProvider></TableCell>
+                </TableRow></>}</>
+          }
+          <TableRow>
+            <TableCell>Has Payed: </TableCell><TableCell>{roundToCent(member.hasPayed)}</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>Has to Pay: </TableCell><TableCell>{roundToCent(member.toPay)}</TableCell>
+          </TableRow>
+          <TableRow className={member.toPay - member.hasPayed > 0 ? 'hasToPay' : 'gets'}>
+            <TableCell>{member.toPay - member.hasPayed > 0 ? `Has still to Pay` : 'Gets: '}</TableCell>
+            <TableCell className='memberAmount' >{Math.abs(roundToCent(member.toPay - member.hasPayed))}</TableCell>
+          </TableRow>
+        </TableBody></Table>
+
+      </CardContent>
+    </Card>
+  </Grid>;
+}
+
+export function Group() {
+  const [groupData, setGroupData] = useState<IGroupData>({ name: 'Loading. Are you logged in?', members: [], id: '', dayMode: false, transactions: [] });
+  const [tab, setTab] = useState(0);
+  const [groupId, setGroupId] = useState<string>();
+  useEffect(() => {
+    setGroupId(window.location.hash.replace(/^#/, ''));
+    // groupId = window.location.hash.replace(/^#/, '');
+    // loadData();
+  }, []);
+  useEffect(() => {
+    if (typeof groupId !== 'undefined') {
+      let source = new EventSource(API_BASE + '/' + groupId + '/stream?auth=' + localStorage.getItem('user'));
+      source.onmessage = ({ data }) => {
+        const json = JSON.parse(data);
+        for (const member of json.members) {
+          for (const entry of member.entries) {
+            entry.time = new Date(entry.time);
+            if (typeof entry.endTime !== 'undefined') {
+              entry.endTime = new Date(entry.endTime);
+            }
           }
         }
-      }
 
-      this.setState({
-        groupData: json
-      })
-    };
-    source.onerror = (evt) => {
-      console.log(evt, 'event');
+        setGroupData(json)
+      };
+      source.onerror = (evt) => {
+        console.log(evt, 'event');
+      }
+      return () => {
+        source.close();
+      }
     }
-  }
-  componentDidMount () {
-    this.groupId = window.location.hash.replace(/^#/, '');
-    this.loadData();
-  }
-  async valueChanged(memberId: number, change: any) {
-    if (change.start) {
-      change.start = change.start.startOf('day');
-    }
-    await fetch(API_BASE + '/' + String(this.state.groupData.id) + '/member/' + String(memberId), {
+
+  }, [groupId])
+  async function changeDayMode(event: any) {
+    await fetch(API_BASE + '/' + String(groupData.id) + '/dayMode', {
       method: 'POST',
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         "Auth": localStorage.getItem('user')
         // "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify(change)
+      body: JSON.stringify({ dayMode: event.target.checked })
     });
-    console.log(memberId, change);
   }
-  renderMember (member: IMember, i: number) {
-    return (
-      <Grid item xs={12} sm={6} md={3}  key={i}>
-        <Card>
-          <CardContent>
-            <Typography gutterBottom variant="h5" component="h2">
-              {member.name}
-            </Typography>
-            <Table><TableBody>
-            {this.state.groupData.dayMode && <>
-              <TableRow>
-                <TableCell colSpan={2}><FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={member.allTime}
-                      onChange={event => this.valueChanged(member.id, {allTime: event.target.checked})}
-                      value="DayMode"
-                      color="primary"
-                    />
-                  }
-                  label="all time"
-                />
-                </TableCell>
-              </TableRow>
-              {member.allTime === false &&
-                <>
-              <TableRow>
-                <TableCell>start: </TableCell><TableCell>
 
-                <MuiPickersUtilsProvider utils={MomentUtils}>
-                          <DatePicker
-                            margin="normal"
-                            label=""
-                            value={member.start}
-                            onChange={event => this.valueChanged(member.id, {start: event})}
-                          />
-                      </MuiPickersUtilsProvider>
-                  </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>end: </TableCell>
-                <TableCell><MuiPickersUtilsProvider utils={MomentUtils}>
-                          <DatePicker
-                            margin="normal"
-                            label=""
-                            value={member.end}
-                            onChange={event => this.valueChanged(member.id, {end: event})}
-                          />
-                      </MuiPickersUtilsProvider></TableCell>
-            </TableRow></>}</>
+
+
+
+  const entriesFlat: IEntryFlat[] = [];
+  for (const member of groupData.members) {
+    for (const entry of member.entries) {
+      entriesFlat.push({ name: member.name, ...entry });
+    }
+  }
+  // <pre>HI{JSON.stringify(groupData)}</pre>
+  return (
+    <div>
+      <h1>Group {groupData.name}</h1>
+      <FormGroup row>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={groupData.dayMode}
+              onChange={(event) => changeDayMode(event)}
+              value="DayMode"
+              color="primary"
+            />
           }
-            <TableRow>
-              <TableCell>Has Payed: </TableCell><TableCell>{roundToCent(member.hasPayed)}</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>Has to Pay: </TableCell><TableCell>{roundToCent(member.toPay)}</TableCell>
-            </TableRow>
-            <TableRow className={member.toPay - member.hasPayed > 0 ? 'hasToPay' : 'gets'}>
-              <TableCell>{member.toPay - member.hasPayed > 0 ? `Has still to Pay` : 'Gets: '}</TableCell>
-              <TableCell className='memberAmount' >{Math.abs(roundToCent(member.toPay - member.hasPayed))}</TableCell>
-              </TableRow>
-            </TableBody></Table>
-
-          </CardContent>
-        </Card>
-      </Grid>
-    );
-  }
-  async changeDayMode(event: any) {
-    await fetch(API_BASE + '/' + String(this.state.groupData.id) + '/dayMode', {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Auth": localStorage.getItem('user')
-        // "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: JSON.stringify({dayMode: event.target.checked})
-    });
-  }
-  render() {
-    console.log(this.state);
-    const entriesFlat: IEntryFlat[] = [];
-    for (const member of this.state.groupData.members) {
-      for (const entry of member.entries) {
-        entriesFlat.push({name: member.name, ... entry});
-      }
-    }
-    // <pre>HI{JSON.stringify(this.state.groupData)}</pre>
-    return (
-      <div>
-        <h1>Group {this.state.groupData.name}</h1>
-        <FormGroup row>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={this.state.groupData.dayMode}
-                onChange={(event) => this.changeDayMode(event)}
-                value="DayMode"
-                color="primary"
-              />
-            }
-            label="Day Mode"
-          />
-        </FormGroup>
-        <AppBar position="static">
-        <Tabs value={this.state.tab} onChange={(_, newValue) => this.setState({tab: newValue})} aria-label="simple tabs example">
-          <Tab label="Summary"  />
-          <Tab label="Plots"  />
+          label="Day Mode"
+        />
+      </FormGroup>
+      <AppBar position="static">
+        <Tabs value={tab} onChange={(_, newValue) => setTab(newValue)} aria-label="simple tabs example">
+          <Tab label="Summary" />
+          <Tab label="Plots" />
         </Tabs>
       </AppBar>
-      <TabPanel value={this.state.tab} index={0}>
-      <Grid container spacing={10}>
-        {
-          this.state.groupData.members.map((member, i) => this.renderMember(member, i))
-        }
+      <TabPanel value={tab} index={0}>
+        <Grid container spacing={10}>
+          {groupData.members.map((member, i) => <Member member={member} i={i} groupId={groupId} dayMode={groupData.dayMode} />)}
         </Grid>
       </TabPanel>
-      <TabPanel value={this.state.tab} index={1}>
-      <PlotWrapper groupData={this.state.groupData}/>
+      <TabPanel value={tab} index={1}>
+        <PlotWrapper groupData={groupData} />
       </TabPanel>
 
-        <br/>
-        <Card>
-          <EntryTable entries={entriesFlat} groupData={this.state.groupData} />
-        </Card>
-        <br/>
-        <Card>
+      <br />
+      <Card>
+        <EntryTable entries={entriesFlat} groupData={groupData} />
+      </Card>
+      <br />
+      <Card>
         <CardContent>
-        <Typography gutterBottom variant="h5" component="h2">Transaction to Equalize</Typography>
-            <Table>
+          <Typography gutterBottom variant="h5" component="h2">Transaction to Equalize</Typography>
+          <Table>
             <TableHead>
-                <TableRow>
+              <TableRow>
                 <TableCell>
-                From
+                  From
                 </TableCell>
                 <TableCell>
-                To
+                  To
                 </TableCell>
                 <TableCell>
-                Amount
+                  Amount
                 </TableCell>
                 <TableCell>
-                Paypal
+                  Paypal
                 </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {this.state.groupData.transactions.map(transaction =>
+              {groupData.transactions.map(transaction =>
                 <TableRow>
                   <TableCell>
                     {transaction.from}
@@ -254,15 +257,14 @@ export class Group extends React.Component<{}, {groupData: IGroupData, tab: numb
                     {Math.round(transaction.amount * 100) / 100}
                   </TableCell>
                   <TableCell>
-                    {transaction.paypalLink &&<a href={transaction.paypalLink}>Pay</a>}
+                    {transaction.paypalLink && <a href={transaction.paypalLink}>Pay</a>}
                   </TableCell>
                 </TableRow>
               )}
-              </TableBody>
-            </Table>
-            </CardContent>
-        </Card>
-      </div>
-    );
-  }
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }

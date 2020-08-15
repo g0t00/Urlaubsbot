@@ -27,12 +27,16 @@
     "react-dom": "^16.13.1",
     "react-plotly.js": "^2.4.0",
     "react-telegram-login": "^1.1.2",
+    "typeface-roboto": "0.0.75",
     "typescript": "^3.9.7"
   },
   "devDependencies": {
     "@types/webpack-env": "^1.15.2",
     "awesome-typescript-loader": "^5.2.1",
+    "css-loader": "^4.2.1",
+    "file-loader": "^6.0.0",
     "source-map-loader": "^1.0.1",
+    "style-loader": "^1.2.1",
     "webpack": "^4.44.1",
     "webpack-bundle-analyzer": "^3.8.0",
     "webpack-cli": "^3.3.12"
