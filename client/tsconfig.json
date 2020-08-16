@@ -4,7 +4,8 @@
         "sourceMap": true,
         "noImplicitAny": true,
         "module": "commonjs",
-        "target": "ESNext",
+        "target": "ES2018",
+        "lib": ["DOM", "ESNext"],
         "jsx": "react",
         "moduleResolution": "node",
         "allowSyntheticDefaultImports": true
