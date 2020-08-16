@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc --project .",
     "build-watch": "tsc -w --project .",
-    "run-watch": "nodemon dist/app.js",
+    "run-watch": "nodemon --ignore client/ dist/app.js",
     "test": "xo",
     "start": "node dist/app.js",
     "build-client": "cd client && webpack"

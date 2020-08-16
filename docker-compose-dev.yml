@@ -23,7 +23,7 @@ services:
     build: ./dev-env
     volumes:
       - ./:/home/node/app
-    # working_dir: /home/node/app/client
+    working_dir: /home/node/app/client
     command: npm run build-watch
   mongo:
     image: mongo:4.4.0-bionic
