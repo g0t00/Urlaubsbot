@@ -180,7 +180,7 @@ export class EntryTable extends React.Component<IEntryTableProps, { deleteDialog
       return <span>All</span>;
     }
     const valueSort = value.slice().sort((a, b) => (this.props.groupData.members.find(member => member.id === a)?.name ?? '').localeCompare(this.props.groupData.members.find(member => member.id === b)?.name));
-    return <span>{value.map(partialGroupMemberId => this.props.groupData.members.find(member => member.id === partialGroupMemberId).name).join(', ')}</span>;
+    return <span>{valueSort.map(partialGroupMemberId => this.props.groupData.members.find(member => member.id === partialGroupMemberId).name).join(', ')}</span>;
   }
   partialGroupEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange }) => (
     <FormGroup>
