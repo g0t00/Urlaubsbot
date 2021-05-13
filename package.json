@@ -28,6 +28,7 @@
     "ascii-table": "0.0.9",
     "bluebird": "^3.7.2",
     "circular-json": "^0.5.5",
+    "concurrently": "^6.1.0",
     "cron": "^1.8.2",
     "date-fns": "^2.15.0",
     "ejs": "^2.7.4",

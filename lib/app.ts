@@ -73,6 +73,9 @@ class App {
     // });
     this.bot.on('message', async ({ chat, reply, message }, next) => {
       // reply('mesesage');
+      if (chat?.type !== 'group') {
+        return next();
+      }
       if (!chat || !chat.id || !message || !message.from) {
         reply('WTF');
         return;
@@ -481,7 +484,7 @@ class App {
         let addNumber = '';
         let message_id: number;
         while (!done) {
-          await new Promise(async resolve => {
+          await new Promise<void>(async resolve => {
             console.log(addNumber, 'a');
             let numbers = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [0, '.']];
             const buttons: IButton[][] = numbers.map(numbersRow => numbersRow.map(number => {
@@ -586,8 +589,9 @@ class App {
     (this.bot as any).action(/./, (ctx: any) => {
       return callbackHandler.handle(ctx);
     });
-    this.bot.on('message', (ctx) => {
+    this.bot.on('message', (ctx, next) => {
       callbackHandler.handleMessage(ctx);
+      next();
     });
     this.bot.command('help', ({ reply }) => {
       const str = `/initializegroup - initialize group, so bot knows it;
@@ -608,13 +612,25 @@ class App {
     /setpaypal - Set Paypal Link
     /transactions - Get Transactions
     /editdescription - Edit Description of entry
-    /kick - Kick User`;
+    /kick - Kick User
+    /groups - Get overview over groups (works only in private chat)`;
       const help = str.split('\n');
       help.sort();
       reply("test");
       console.log('test');
       reply(help.join('\n'));
     });
+    this.bot.command('groups', async ({ chat, reply, replyWithHTML}, next) => {
+      if (chat?.type !== 'private') {
+        return next();
+      }
+      const groups = await GroupModel.find({'members.id': chat.id});
+      for (const group of groups) {
+        reply(`member of ${group.name} with ${group.members.map(member => member.name)}`)
+        const table = await group.getSummaryTable();
+        replyWithHTML(`<code>Group '${group.name}'\n${table} </code>`);
+      }
+    })
   }
 }
 

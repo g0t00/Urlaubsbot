@@ -4,6 +4,7 @@ services:
     build: ./dev-env
     ports:
     - "3000:3000"
+    - "8228:8228"
     depends_on:
     - mongo
     environment:
@@ -13,18 +14,18 @@ services:
     volumes:
       - ./:/home/node/app
     working_dir: /home/node/app
-    command: nodemon dist/app.js
+    command: nodemon --delay 80ms --inspect=0.0.0.0:8228 -w "dist/*.js" --verbose -- --enable-source-maps dist/app.js
   build:
     build: ./dev-env
     volumes:
       - ./:/home/node/app
-    command: npm run build-watch
-  build-client:
-    build: ./dev-env
-    volumes:
-      - ./:/home/node/app
-    working_dir: /home/node/app/client
-    command: npm run build-watch
+    command: bash -c 'npm ci && npx concurrently "cd client && npm ci && npm run build-watch" "npm run build-watch" '
+  # build-client:
+  #   build: ./dev-env
+  #   volumes:
+  #     - ./:/home/node/app
+  #   working_dir: /home/node/app/client
+  #   command: npm run build-watch
   mongo:
     image: mongo:4.4.0-bionic
     volumes:
