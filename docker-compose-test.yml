@@ -1,0 +1,33 @@
+version: '2.0'
+services:
+  app:
+    build: .
+    container_name: urlaubsbot
+    restart: always
+    ports:
+    - "3000:3000"
+    depends_on:
+    - mongo
+    environment:
+      - PORT=3000
+      - TOKEN=***REMOVED***
+      # - TOKEN=***REMOVED***
+      - HOST=http://127.0.0.1:3000
+      - NODE_ENV=production
+    # networks:
+    #   - urlaubsbot
+    #   - system-proxy_default
+
+  mongo:
+    image: mongo:4.4.0-bionic
+    restart: always
+    volumes:
+      - ./data:/data/db
+    # networks:
+    #   - urlaubsbot
+
+# networks:
+#   urlaubsbot:
+#     driver: bridge
+#   system-proxy_default:
+#     external: true

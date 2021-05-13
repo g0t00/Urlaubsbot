@@ -21,5 +21,7 @@ COPY --chown=node:node lib lib
 COPY --chown=node:node tsconfig.json tsconfig.json
 RUN npm run build
 # COPY views views
-COPY --from=client-builder --chown=node:node /home/node/app client
+COPY --from=client-builder --chown=node:node /home/node/app/index.html client/index.html
+COPY --from=client-builder --chown=node:node /home/node/app/style.css client/style.css
+COPY --from=client-builder --chown=node:node /home/node/app/dist/bundle.js client/dist/bundle.js
 CMD npm start
