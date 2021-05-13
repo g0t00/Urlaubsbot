@@ -625,10 +625,12 @@ class App {
         return next();
       }
       const groups = await GroupModel.find({'members.id': chat.id});
+      reply("Listing all groups where you and another person is member...");
       for (const group of groups) {
-        reply(`member of ${group.name} with ${group.members.map(member => member.name)}`)
-        const table = await group.getSummaryTable();
-        replyWithHTML(`<code>Group '${group.name}'\n${table} </code>`);
+        if (group.members.length > 1) {
+          const table = await group.getSummaryTable();
+          replyWithHTML(`<code>Group '${group.name}'\n${table} </code>`);
+        }
       }
     })
   }
