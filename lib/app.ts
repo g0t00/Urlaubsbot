@@ -617,14 +617,10 @@ class App {
       next();
     });
     this.bot.command('help', ({ reply }) => {
-      let str = '';
-      for (const { command, description } of commands) {
-        str += `/${command} - ${description}`;
-      }
-      const help = str.split('\n');
-      help.sort();
-      console.log('test');
-      reply(help.join('\n'));
+      let commandsParsed = commands.map(({ command, description }) => `/${command} - ${description}`);
+
+      commandsParsed.sort();
+      reply(commandsParsed.join('\n'));
     });
     this.bot.command('groups', async ({ chat, reply, replyWithHTML }, next) => {
       if (chat?.type !== 'private') {
