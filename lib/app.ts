@@ -14,6 +14,28 @@ import { PaypalMappingModel } from './paypalMapping';
 if (typeof process.env.TOKEN !== 'string') {
   throw new Error('Token not set!');
 }
+const commands = [
+  { command: 'initializegroup', description: 'initialize group, so bot knows it' },
+  { command: 'newmember', description: 'adds yourself to group.' },
+  { command: 'newmembernotelegram', description: 'adds a member who has no telegram' },
+  { command: 'summary', description: 'get summary.' },
+  { command: 'memberinfo', description: 'get Info about you3' },
+  { command: 'groupinfo', description: 'gets Link to fancy group view' },
+  { command: 'setcurrency', description: 'Sets exchange rate for foreign currrency to be used. All foreign amounts will be divide by this value.' },
+  { command: 'getcurrency', description: 'Gets exchange rate' },
+  { command: 'add', description: 'Adds amount. Please only input one number after, because it will be used as amount.' },
+  { command: 'addforeign', description: 'Adds amount in foreign currency. Will be divided by currency value. Orginal amount will be discarded.' },
+  { command: 'addother', description: 'Adds amount to different member.' },
+  { command: 'addotherforeign', description: 'Adds amount to different member in foreign currency.' },
+  { command: 'addpartial', description: 'Add amount only to certain group members' },
+  { command: 'remove', description: 'Remove Entry' },
+  { command: 'editamount', description: 'Edit Amount of entry' },
+  { command: 'setpaypal', description: 'Set Paypal Link' },
+  { command: 'transactions', description: 'Get Transactions' },
+  { command: 'editdescription', description: 'Edit Description of entry' },
+  { command: 'kick', description: 'Kick User' },
+  { command: 'groups', description: 'Get overview over groups (works only in private chat)`' }
+];
 class App {
   express: express.Application;
 
@@ -39,6 +61,7 @@ class App {
       console.log(botInfo);
       (this.bot as any).options.username = botInfo.username;
     });
+    this.bot.telegram.setMyCommands(commands);
     this.express = express();
     this.express.set('view engine', 'ejs');
     this.express.set('views', '../views');
@@ -594,37 +617,20 @@ class App {
       next();
     });
     this.bot.command('help', ({ reply }) => {
-      const str = `/initializegroup - initialize group, so bot knows it;
-    /newmember - adds yourself to group.
-    /newmembernotelegram - adds a member who has no telegram
-    /summary - get summary.
-    /memberinfo - get Info about you
-    /groupinfo - gets Link to fancy group view
-    /setcurrency - Sets exchange rate for foreign currrency to be used. All foreign amounts will be divide by this value.
-    /getcurrency - Gets exchange rate
-    /add - Adds amount. Please only input one number after, because it will be used as amount.
-    /addforeign - Adds amount in foreign currency. Will be divided by currency value. Orginal amount will be discarded.
-    /addother - Adds amount to different member.
-    /addotherforeign - Adds amount to different member in foreign currency.
-    /addpartial - Add amount only to certain group members
-    /remove - Remove Entry
-    /editamount - Edit Amount of entry
-    /setpaypal - Set Paypal Link
-    /transactions - Get Transactions
-    /editdescription - Edit Description of entry
-    /kick - Kick User
-    /groups - Get overview over groups (works only in private chat)`;
+      let str = '';
+      for (const { command, description } of commands) {
+        str += `/${command} - ${description}`;
+      }
       const help = str.split('\n');
       help.sort();
-      reply("test");
       console.log('test');
       reply(help.join('\n'));
     });
-    this.bot.command('groups', async ({ chat, reply, replyWithHTML}, next) => {
+    this.bot.command('groups', async ({ chat, reply, replyWithHTML }, next) => {
       if (chat?.type !== 'private') {
         return next();
       }
-      const groups = await GroupModel.find({'members.id': chat.id});
+      const groups = await GroupModel.find({ 'members.id': chat.id });
       reply("Listing all groups where you and another person is member...");
       for (const group of groups) {
         if (group.members.length > 1) {
