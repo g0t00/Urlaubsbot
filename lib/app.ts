@@ -60,8 +60,8 @@ class App {
     this.bot.telegram.getMe().then(botInfo => {
       console.log(botInfo);
       (this.bot as any).options.username = botInfo.username;
+      this.bot.telegram.setMyCommands(commands);
     });
-    this.bot.telegram.setMyCommands(commands);
     this.express = express();
     this.express.set('view engine', 'ejs');
     this.express.set('views', '../views');
