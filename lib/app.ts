@@ -16,7 +16,14 @@ if (typeof process.env.TOKEN !== 'string') {
   throw new Error('Token not set!');
 }
 class App {
-  commands: {command: string, description: string}[] = [];
+  commands: {command: string, description: string}[] = [
+    { command: 'add', description: 'Adds amount. Please only input one number after, because it will be used as amount.' },
+    { command: 'addforeign', description: 'Adds amount in foreign currency. Will be divided by currency value. Orginal amount will be discarded.' },
+    { command: 'addother', description: 'Adds amount to different member.' },
+    { command: 'addotherforeign', description: 'Adds amount to different member in foreign currency.' },
+    { command: 'addpartial', description: 'Add amount only to certain group members.' },
+    { command: 'addpartialforeign', description: 'Add amount only to certain group members in foreign currency.' },
+  ];
   addCommand(command: string, description: string, ...middlewares: ReadonlyArray<Middleware<TelegrafContext>>) {
     this.commands.push({command, description});
     this.bot.command(command, ...middlewares);
