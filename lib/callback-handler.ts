@@ -1,8 +1,10 @@
 import * as EventEmitter from 'events';
-import { Markup} from 'telegraf';
+import { Context, Markup } from 'telegraf';
+import { Update } from 'telegraf/typings/core/types/typegram';
+import { WizardContextWizard } from 'telegraf/typings/scenes';
 import { v1 as uuid } from 'uuid';
-import {app} from './app';
-import { TelegrafContext } from 'telegraf/typings/context';
+import { MatchedContext } from './add';
+import { app } from './app';
 export interface IButton {
   text: string;
   clicked: () => Promise<boolean>;
@@ -14,19 +16,16 @@ export class CallbackHandler {
   }
   callbackEmitter = new EventEmitter();
   responseEmitter = new EventEmitter();
-  async handle(ctx: TelegrafContext) {
-    // console.log(this, 'This', ctx.callbackQuery);
-    if (ctx.callbackQuery && ctx.callbackQuery.data) {
-      const match = ctx.callbackQuery.data.match(/([^%]+)%([^%]+)%([^%]+)/);
-      if (match) {
-        this.callbackEmitter.emit(match[1], match[2], match[3], ctx);
-      }
+  async handle(ctx: MatchedContext<Context<Update>, "callback_query">) {
+    const match = (ctx.callbackQuery as any).data.match(/([^%]+)%([^%]+)%([^%]+)/);
+    if (match) {
+      this.callbackEmitter.emit(match[1], match[2], match[3], ctx);
     }
   }
-  async handleMessage(ctx: TelegrafContext) {
-    // console.log(ctx.update);
-    if (ctx.update.message && ctx.update.message.reply_to_message) {
-      this.responseEmitter.emit('response', ctx.update.message.reply_to_message.chat.id, ctx.update.message.reply_to_message.message_id, ctx.update.message.text, ctx.update.message.message_id);
+  async handleMessage(ctx: Context<Update>) {
+    console.log(ctx.update);
+    if (ctx.message && (ctx.message as any).reply_to_message) {
+      this.responseEmitter.emit('response', (ctx.message as any).reply_to_message.chat.id, (ctx.message as any).reply_to_message.message_id, (ctx.message as any).text, ctx.message.message_id);
     }
   }
   getKeyboard(button2d: IButton[][]) {
@@ -34,15 +33,19 @@ export class CallbackHandler {
     const keyboardUuid = uuid();
     const keyboard = button2d.map((button1d, index) => {
       return button1d.map((button, index2) => {
-        return Markup.callbackButton(button.text, keyboardUuid + '%' + index + '%' + index2);
+        return Markup.button.callback(button.text, keyboardUuid + '%' + index + '%' + index2);
       });
     });
-    this.callbackEmitter.once(keyboardUuid, async (index: number, index2: number, ctx: TelegrafContext) => {
+    this.callbackEmitter.once(keyboardUuid, async (index: number, index2: number, ctx: Context<Update> & { match: RegExpMatchArray }) => {
       console.log('asd', index, index2);
       const clickHandler = button2d[index][index2].clicked;
       if (ctx.callbackQuery && ctx.callbackQuery.message && await clickHandler()) {
         console.log('Deleted callback');
-        ctx.telegram.deleteMessage(ctx.callbackQuery.message.chat.id, ctx.callbackQuery.message.message_id);
+        try {
+          ctx.telegram.deleteMessage(ctx.callbackQuery.message.chat.id, ctx.callbackQuery.message.message_id);
+        } catch(err) {
+
+        }
       }
     });
     return keyboard;

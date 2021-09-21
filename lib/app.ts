@@ -1,4 +1,4 @@
-import Telegraf from 'telegraf';
+import { Telegraf } from 'telegraf';
 import { Markup, Middleware } from 'telegraf';
 import { connect } from 'mongoose';
 import { addMiddleware } from './add';
@@ -10,13 +10,14 @@ const AsciiTable = require('ascii-table');
 import { web } from './web';
 import { GroupModel } from './group';
 import { PaypalMappingModel } from './paypalMapping';
-import { TelegrafContext } from 'telegraf/typings/context';
+import { runInThisContext } from 'vm';
 // import { Sheet } from'./sheet';
 if (typeof process.env.TOKEN !== 'string') {
   throw new Error('Token not set!');
 }
 class App {
-  commands: {command: string, description: string}[] = [
+  bot = new Telegraf(process.env.TOKEN as string);
+  commands: { command: string, description: string }[] = [
     { command: 'add', description: 'Adds amount. Please only input one number after, because it will be used as amount.' },
     { command: 'addforeign', description: 'Adds amount in foreign currency. Will be divided by currency value. Orginal amount will be discarded.' },
     { command: 'addother', description: 'Adds amount to different member.' },
@@ -24,13 +25,12 @@ class App {
     { command: 'addpartial', description: 'Add amount only to certain group members.' },
     { command: 'addpartialforeign', description: 'Add amount only to certain group members in foreign currency.' },
   ];
-  addCommand(command: string, description: string, ...middlewares: ReadonlyArray<Middleware<TelegrafContext>>) {
-    this.commands.push({command, description});
-    this.bot.command(command, ...middlewares);
+  addCommand(command: string, description: string, middleware0: Parameters<this['bot']['command']>[1], ...middlewares: Parameters<this['bot']['command']>[2][]) {
+    this.commands.push({ command, description });
+    this.bot.command(command, middleware0, ...middlewares);
   }
   express: express.Application;
 
-  bot = new Telegraf(process.env.TOKEN as string);
   url: string;
   constructor() {
     let webHook = false;
@@ -39,9 +39,11 @@ class App {
     port = parseInt(process.env.PORT ?? '3000');
     this.url = process.env.HOST ?? `http://localhost:${port}`;
     this.bot.telegram.getMe().then(botInfo => {
-      console.log(botInfo);
-      (this.bot as any).options.username = botInfo.username;
+      // console.log(botInfo);
+      // this.bot.options.username = botInfo.username;
       this.bot.telegram.setMyCommands(this.commands);
+
+
     });
     this.express = express();
     this.express.set('view engine', 'ejs');
@@ -52,14 +54,22 @@ class App {
     this.express.get('/', (_req, res) => {
       res.send('Hello World!');
     });
+
     if (webHook) {
       this.express.use(this.bot.webhookCallback('/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4'));
       this.bot.telegram.setWebhook(this.url + '/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
       this.bot.telegram.webhookReply = false
+      this.bot.launch({
+        webhook: {
+          hookPath: this.url + '/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4'
+        }
+      });
+      this.bot.telegram.setWebhook('');
+
     } else {
+      this.bot.launch();
       console.log('starting Polling');
       this.bot.telegram.setWebhook('');
-      this.bot.startPolling();
     }
     this.bot.use((addMiddleware as unknown) as Middleware<any>);
     this.express.listen(port, () => {
@@ -75,13 +85,15 @@ class App {
     //     await ctx.groupObj.save();
     //   });
     // });
-    this.bot.on('message', async ({ chat, reply, message }, next) => {
+    this.bot.on('message', async (ctx, next) => {
       // reply('mesesage');
+      console.log(ctx);
+      const { chat, message } = ctx;
       if (chat?.type !== 'group') {
         return next();
       }
       if (!chat || !chat.id || !message || !message.from) {
-        reply('WTF');
+        ctx.reply('WTF');
         return;
       }
       const from = message.from;
@@ -93,15 +105,36 @@ class App {
         groupObj.telegramId = chat.id;
         await groupObj.save();
       }
-      if (!groupObj.members.find(member => member.id === from.id) && !groupObj.groupBannedUsers.find(member => member.id === from.id)) {
+      if (from.is_bot === false && !groupObj.members.find(member => member.id === from.id) && !groupObj.groupBannedUsers.find(member => member.id === from.id)) {
         await groupObj.addMember(message.from.first_name, message.from.id)
       }
+      const chatDetails = await this.bot.telegram.getChat(groupObj.telegramId);
+      const botInfo = await this.bot.telegram.getMe();
+      let pinned = false;
+      if (chatDetails.pinned_message?.from?.id === botInfo.id) {
+        pinned = true;
+      }
 
+      if (!pinned) {
+        const groupMemberInfo = await this.bot.telegram.getChatMember(groupObj.telegramId, botInfo.id);
+        if (groupMemberInfo.status !== 'administrator' || groupMemberInfo.can_pin_messages !== true) {
+          if (groupObj.pinningRightsCooldown === undefined || new Date().getDate() - groupObj.pinningRightsCooldown.getDate() > 1000*60*60*24) {
+            const message = await this.bot.telegram.sendMessage(groupObj.telegramId, 'Please give Pinning Rights.');
+            groupObj.pinningRightsCooldown = new Date();
+            await groupObj.save();
+          }
+
+        } else {
+          const message = await this.bot.telegram.sendMessage(groupObj.telegramId, `<a href="${this.url}/client/index.html#${groupObj.id}">Inforino</a>`, { parse_mode: 'HTML' });
+          await this.bot.telegram.pinChatMessage(groupObj.telegramId, message.message_id);
+        }
+      }
       if (next) {
         next();
       }
     });
-    this.bot.on('group_chat_created', async ({ reply, chat, message }) => {
+    this.bot.on('group_chat_created', async (ctx) => {
+      const { chat, message } = ctx;
       if (!chat || !message || !message.from) {
         return;
       }
@@ -109,12 +142,12 @@ class App {
 
       if (!groupObj) {
         groupObj = new GroupModel();
-        groupObj.name = chat.title || '';
+        groupObj.name = 'title' in chat ? chat.title : '';
         groupObj.telegramId = chat.id;
         await groupObj.save();
-        reply('Neue Gruppe angelegt: ' + groupObj.name);
+        ctx.reply('Neue Gruppe angelegt: ' + groupObj.name);
       }
-      for (const member of (message.new_chat_members || [])) {
+      for (const member of ((message as any).new_chat_members ?? [])) {
         if (member.is_bot === false) {
           groupObj.addMember(member.first_name, member.id);
         }
@@ -122,18 +155,20 @@ class App {
 
       groupObj.addMember(message.from.first_name, message.from.id);
     });
-    this.bot.on('new_chat_title', async ({ chat, reply }) => {
-      if (chat && chat.title) {
+    this.bot.on('new_chat_title', async (ctx) => {
+      const { chat } = ctx;
+      if ("title" in chat) {
         const groupObj = await GroupModel.findOne({ telegramId: chat.id });
         if (groupObj) {
           groupObj.name = chat.title;
           await groupObj.save();
-          await reply(`Changed Group name to ${groupObj.name}`);
+          await ctx.reply(`Changed Group name to ${groupObj.name}`);
         }
       }
       console.log()
     })
-    this.bot.on('new_chat_members', async ({ reply, message, chat }) => {
+    this.bot.on('new_chat_members', async (ctx) => {
+      const { reply, message, chat } = ctx;
       if (!chat || !message || !message.from) {
         console.log('WTF');
         return;
@@ -141,7 +176,7 @@ class App {
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
       if (!groupObj) {
-        reply('Not in group / none initialized group');
+        ctx.reply('Not in group / none initialized group');
         return;
       }
       // reply(JSON.stringify(message.new_chat_members));
@@ -161,7 +196,7 @@ class App {
       }
 
       const group = new GroupModel();
-      group.name = ctx.chat.title || '';
+      group.name = 'title' in ctx.chat ? ctx.chat.title : '';
       group.telegramId = ctx.chat.id;
       await group.save();
       ctx.reply('GroupModel initialized');
@@ -198,25 +233,27 @@ class App {
         ctx.reply('Not in group / none initialized group');
       }
     });
-    this.addCommand('test', 'random test string', async ({ message, reply }) => {
+    this.addCommand('test', 'random test string', async (ctx) => {
+      const { message, reply } = ctx;
       if (!message || !message.text) {
         return;
       }
       for (const entity of (message.entities || [])) {
         if (entity.type === 'mention') {
-          reply(message.text.substr(entity.offset, entity.length));
+          ctx.reply(message.text.substr(entity.offset, entity.length));
         }
       }
       console.log(message.entities);
-      reply(JSON.stringify(message));
+      ctx.reply(JSON.stringify(message));
     });
-    this.addCommand('newmembernotelegram', 'adds a member who has no telegram', async ({ message, reply, chat }) => {
+    this.addCommand('newmembernotelegram', 'adds a member who has no telegram', async (ctx) => {
+      const { message, reply, chat } = ctx;
       if (!chat || !chat.id || !message || !message.text || !message.entities) {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
       if (!groupObj) {
-        reply('Not in group / none initialized group');
+        ctx.reply('Not in group / none initialized group');
         return;
       }
       // Object.keys(ctx.message).forEach(key => {
@@ -228,17 +265,18 @@ class App {
       // console.log(message);
       const memberName = message.text.substr(message.entities[0].length + 1);
       if (memberName === '') {
-        return reply('No Name given!');
+        return ctx.reply('No Name given!');
       }
       let memberId = 0;
       for (let i = 0; i < memberName.length; i++) {
         memberId -= memberName.charCodeAt(i);
       }
       if (!await groupObj.addMember(memberName, memberId)) {
-        reply('You are already in group!');
+        ctx.reply('You are already in group!');
       }
     });
-    this.addCommand('groupinfo', 'gets Link to fancy group view', async ({ reply, chat, replyWithHTML }) => {
+    this.addCommand('groupinfo', 'gets Link to fancy group view', async (ctx) => {
+      const { chat } = ctx;
       if (!chat || !chat.id) {
         return;
       }
@@ -246,36 +284,38 @@ class App {
       console.log('c');
 
       if (!groupObj) {
-        return reply('Not in group / none initialized group');
+        return ctx.reply('Not in group / none initialized group');
       }
-      replyWithHTML(`<a href="${this.url}/client/index.html#${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
+      ctx.replyWithHTML(`<a href="${this.url}/client/index.html#${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
     });
 
-    this.addCommand('summary', 'get summary.', async ({ chat, reply, replyWithHTML, replyWithPhoto }) => {
+    this.addCommand('summary', 'get summary.', async (ctx) => {
+      const { chat, reply, replyWithHTML, replyWithPhoto } = ctx;
       if (!chat || !chat.id) {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
       if (!groupObj) {
-        reply('Not in group / none initialized group');
+        ctx.reply('Not in group / none initialized group');
         return;
       }
       const table = await groupObj.getSummaryTable();
-      replyWithHTML('<code>' + table + '</code>');
+      ctx.replyWithHTML('<code>' + table + '</code>');
     });
-    this.addCommand('transactions', 'Get Transactions', async ({ chat, reply, replyWithHTML }) => {
+    this.addCommand('transactions', 'Get Transactions', async (ctx) => {
+      const { chat, reply, replyWithHTML } = ctx;
       if (!chat || !chat.id) {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
       if (!groupObj) {
-        reply('Not in group / none initialized group');
+        ctx.reply('Not in group / none initialized group');
         return;
       }
       console.log(`<b>Transactions</b>\n` + (await groupObj.evaluate()).transactions.map(transaction => `${transaction.from} -> ${transaction.to}: ${Math.round(transaction.amount * 100) / 100} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''}`).join('\n'));
-      replyWithHTML(`<b>Transactions</b>\n` + (await groupObj.evaluate()).transactions.map(transaction => `${transaction.from} -> ${transaction.to}: ${Math.round(transaction.amount * 100) / 100} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''}`).join('\n'));
+      ctx.replyWithHTML(`<b>Transactions</b>\n` + (await groupObj.evaluate()).transactions.map(transaction => `${transaction.from} -> ${transaction.to}: ${Math.round(transaction.amount * 100) / 100} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''}`).join('\n'));
       // const table = AsciiTable.factory({
       //     title: 'Transactions'
       //   , heading: [ 'from', 'to', 'amount', 'paypalLink' ]
@@ -283,73 +323,78 @@ class App {
       // })
       // replyWithHTML('<code>' + table.toString() + '</code>');
     });
-    this.addCommand('setpaypal', 'Set Paypal Link', async ({ chat, reply, message }) => {
+    this.addCommand('setpaypal', 'Set Paypal Link', async (ctx) => {
+      const { chat, reply, message } = ctx;
       if (!chat || !chat.id || !message || !message.text || !message.from) {
         return;
       }
       const paypalLinkMatch = message.text.match(/paypal.me\/([a-z0-9]+)/i);
       if (!paypalLinkMatch) {
-        return reply('No Paypal Link found' + message.text);
+        return ctx.reply('No Paypal Link found' + message.text);
       }
       const paypalLink = 'https://www.paypal.me/' + paypalLinkMatch[1];
       const mapping = await PaypalMappingModel.findOne({ telegramId: message.from.id });
       if (!mapping) {
         const doc = new PaypalMappingModel({ telegramId: message.from.id, link: paypalLink });
         await doc.save();
-        return reply('Paypal Link set to: ' + doc.link);
+        return ctx.reply('Paypal Link set to: ' + doc.link);
       } else {
         mapping.link = paypalLink;
         await mapping.save();
-        return reply('Paypal Link set to: ' + mapping.link);
+        return ctx.reply('Paypal Link set to: ' + mapping.link);
       }
     })
-    this.addCommand('setcurrency', 'Sets exchange rate for foreign currrency to be used. All foreign amounts will be divide by this value.', async ({ message, reply, chat }) => {
+    this.addCommand('setcurrency', 'Sets exchange rate for foreign currrency to be used. All foreign amounts will be divide by this value.', async (ctx) => {
+      const { message, reply, chat } = ctx;
       if (!chat || !chat.id || !message || !message.text || !message.entities) {
         return;
       }
 
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
       if (!groupObj) {
-        return reply('Not in group / none initialized group');
+        return ctx.reply('Not in group / none initialized group');
       }
       const messageText = message.text.substr(message.entities[0].length + 1);
       const currency = parseFloat(messageText.replace(',', '.'));
       if (isNaN(currency)) {
-        return reply('Could not parse Currency!');
+        return ctx.reply('Could not parse Currency!');
       }
       groupObj.currency = currency;
       await groupObj.save();
-      reply(`Currency set to ${currency}.`);
+      ctx.reply(`Currency set to ${currency}.`);
     });
-    this.addCommand('getcurrency', 'Gets exchange rate', async ({ reply, chat }) => {
+    this.addCommand('getcurrency', 'Gets exchange rate', async (ctx) => {
+      const { reply, chat } = ctx;
       if (!chat || !chat.id) {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
       if (!groupObj) {
-        return reply('Not in group / none initialized group');
+        return ctx.reply('Not in group / none initialized group');
       }
       if (groupObj.currency === null) {
-        return reply('No Currency set!');
+        return ctx.reply('No Currency set!');
       }
-      reply(`Currency is ${groupObj.currency}.`);
+      ctx.reply(`Currency is ${groupObj.currency}.`);
     });
 
-    this.addCommand('memberinfo', 'get info about you', async ({ chat, reply, replyWithHTML, message }) => {
+    this.addCommand('memberinfo', 'get info about you', async (ctx) => {
+      const { chat, reply, replyWithHTML, message } = ctx;
       if (!chat || !chat.id || !message || !message.from) {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
       if (!groupObj) {
-        reply('Not in group / none initialized group');
+        ctx.reply('Not in group / none initialized group');
         return;
       }
       const group = groupObj;
-      replyWithHTML(await group.getMemberinfo(message.from.id));
+      ctx.replyWithHTML(await group.getMemberinfo(message.from.id));
     });
-    this.addCommand('remove', 'Remove Entry', async ({ reply, message, chat }) => {
+    this.addCommand('remove', 'Remove Entry', async (ctx) => {
+      const { reply, message, chat } = ctx;
       if (!chat || !chat.id || !message || !message.from) {
         return;
       }
@@ -357,13 +402,13 @@ class App {
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
       if (!groupObj) {
-        reply('Not in group / none initialized group');
+        ctx.reply('Not in group / none initialized group');
         return;
       }
 
       const member = groupObj.getMemberById(message.from.id);
       if (!member) {
-        return reply('Did not find user!');
+        return ctx.reply('Did not find user!');
       }
       const buttons = member.entries.map(entry => {
         return [{
@@ -380,22 +425,19 @@ class App {
       }]);
 
       const keyboard = callbackHandler.getKeyboard(buttons);
-      return reply('Please select entry to delete:', {
-        reply_markup:
-          Markup.inlineKeyboard(keyboard)
-        // .oneTime()
-        // .resize()
-        // .extra()
-      });
+      return ctx.reply('Please select entry to delete:',
+        Markup.inlineKeyboard(keyboard)
+      );
     });
-    this.addCommand('kick', 'Kick User', async ({ reply, chat }) => {
+    this.addCommand('kick', 'Kick User', async (ctx) => {
+      const { reply, chat } = ctx;
       if (!chat) {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
       if (!groupObj) {
-        reply('Not in group / none initialized group');
+        ctx.reply('Not in group / none initialized group');
         return;
       }
 
@@ -404,7 +446,7 @@ class App {
           text: member.name,
           clicked: async () => {
             if (member.entries.length > 0) {
-              await reply(`${member.name} has entries. Can not kick user with entries.`);
+              await ctx.reply(`${member.name} has entries. Can not kick user with entries.`);
               return true;
             }
             groupObj.members.splice(index, 1);
@@ -413,7 +455,7 @@ class App {
               name: member.name
             });
             await groupObj.save();
-            await reply(`${member.name} kicked!`);
+            await ctx.reply(`${member.name} kicked!`);
             return true;
           }
         }]
@@ -423,40 +465,37 @@ class App {
         clicked: async () => { return true; }
       }]);
       const keyboard = callbackHandler.getKeyboard(buttons);
-      return reply('Please select member to kick:', {
-        reply_markup:
-          Markup.inlineKeyboard(keyboard)
-        // .oneTime()
-        // .resize()
-        // .extra()
-      });
+      return ctx.reply('Please select member to kick:',
+        Markup.inlineKeyboard(keyboard)
+      );
     });
-    this.addCommand('editdescription', 'Edit Description of entry', async ({ reply, message, chat }) => {
+    this.addCommand('editdescription', 'Edit Description of entry', async (ctx) => {
+      const { reply, message, chat } = ctx;
       if (!chat || !chat.id || !message || !message.from) {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
       if (!groupObj) {
-        reply('Not in group / none initialized group');
+        ctx.reply('Not in group / none initialized group');
         return;
       }
 
       const member = groupObj.getMemberById(message.from.id);
       if (!member) {
-        return reply('Did not find user!');
+        return ctx.reply('Did not find user!');
       }
       const buttons = member.entries.map(entry => {
         return [{
           text: entry.description + ': ' + entry.amount,
           clicked: async () => {
-            const replyObj = await reply('Please enter new Description.', {
+            const replyObj = await ctx.reply('Please enter new Description.', {
               reply_markup: { force_reply: true, selective: true }
             });
             const oldDescription = entry.description;
             entry.description = await callbackHandler.getReply(chat.id, replyObj.message_id);
             await groupObj.save();
-            await reply(`Changed Entry: ${oldDescription} ->  ${entry.description}: ${entry.amount}`);
+            await ctx.reply(`Changed Entry: ${oldDescription} ->  ${entry.description}: ${entry.amount}`);
             return true;
           }
         }];
@@ -466,40 +505,37 @@ class App {
         clicked: async () => { return true; }
       }]);
       const keyboard = callbackHandler.getKeyboard(buttons);
-      return reply('Please select entry to edit description of:', {
-        reply_markup:
-          Markup.inlineKeyboard(keyboard)
-        // .oneTime()
-        // .resize()
-        // .extra()
-      });
+      return ctx.reply('Please select entry to edit description of:',
+        Markup.inlineKeyboard(keyboard)
+      );
     });
-    this.addCommand('editamount', 'Edit Amount of entry', async ({ reply, message, chat }) => {
+    this.addCommand('editamount', 'Edit Amount of entry', async (ctx) => {
+      const { reply, message, chat } = ctx;
       if (!chat || !chat.id || !message || !message.from) {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
 
       if (!groupObj) {
-        reply('Not in group / none initialized group');
+        ctx.reply('Not in group / none initialized group');
         return;
       }
 
       const member = groupObj.getMemberById(message.from.id);
       if (!member) {
-        return reply('Did not find user!');
+        return ctx.reply('Did not find user!');
       }
       const buttons: IButton[][] = member.entries.map(entry => {
         return [{
           text: entry.description + ': ' + entry.amount,
           clicked: async () => {
-            const replyObj = await reply('Please enter new Amount.', {
+            const replyObj = await ctx.reply('Please enter new Amount.', {
               reply_markup: { force_reply: true, selective: true }
             });
             const oldAmount = entry.amount;
             let newAmount = parseFloat((await callbackHandler.getReply(chat.id, replyObj.message_id)).replace(',', '.'));
             while (!Number.isFinite(newAmount)) {
-              const replyObj = await reply('Could not parse amount! Please retry.', {
+              const replyObj = await ctx.reply('Could not parse amount! Please retry.', {
                 reply_markup: { force_reply: true, selective: true }
               });
               newAmount = parseFloat((await callbackHandler.getReply(chat.id, replyObj.message_id)).replace(',', '.'));
@@ -507,7 +543,7 @@ class App {
             }
             entry.amount = newAmount;
             await groupObj.save();
-            await reply(`Changed Entry: ${entry.description}: ${oldAmount} -> ${entry.amount}`);
+            await ctx.reply(`Changed Entry: ${entry.description}: ${oldAmount} -> ${entry.amount}`);
             return true;
           }
         }];
@@ -518,37 +554,35 @@ class App {
       }]);
 
       const keyboard = callbackHandler.getKeyboard(buttons);
-      return reply('Please select entry to edit amount of:', {
-        reply_markup:
-          Markup.inlineKeyboard(keyboard)
-        // .oneTime()
-        // .resize()
-        // .extra()
-      });
+      return ctx.reply('Please select entry to edit amount of:',
+        Markup.inlineKeyboard(keyboard)
+      );
     });
 
-    (this.bot as any).action(/./, (ctx: any) => {
+    this.bot.action(/./, ctx => {
+
       return callbackHandler.handle(ctx);
     });
     this.bot.on('message', (ctx, next) => {
       callbackHandler.handleMessage(ctx);
       next();
     });
-    this.addCommand('groups', 'Get overview over groups (works only in private chat)', async ({ chat, reply, replyWithHTML }, next) => {
+    this.addCommand('groups', 'Get overview over groups (works only in private chat)', async (ctx, next) => {
+      const { chat, reply, replyWithHTML } = ctx;
       if (chat?.type !== 'private') {
         return next();
       }
       const groups = await GroupModel.find({ 'members.id': chat.id });
-      reply("Listing all groups where you and another person is member...");
+      ctx.reply("Listing all groups where you and another person is member...");
       for (const group of groups) {
         if (group.members.length > 1) {
           const table = await group.getSummaryTable();
-          replyWithHTML(`<code>Group '${group.name}'\n${table} </code>`);
+          ctx.replyWithHTML(`<code>Group '${group.name}'\n${table} </code>`);
         }
       }
     })
 
-    this.addCommand('help', 'list all commands', ({ reply }) => {
+    this.addCommand('help', 'list all commands', (ctx) => {
       let str = '';
       for (const { command, description } of this.commands) {
         str += `/${command} - ${description}`;
@@ -556,7 +590,7 @@ class App {
       const help = str.split('\n');
       help.sort();
       console.log('test');
-      reply(help.join('\n'));
+      ctx.reply(help.join('\n'));
     });
   }
 }

@@ -50,6 +50,8 @@ export class Group {
   currency?: number;
   @prop()
   lastExport?: Date;
+  @prop()
+  pinningRightsCooldown?: Date;
   public getSum() {
     return this.members.reduce((accMembers, member) => {
       return accMembers + member.entries.reduce((accEntries, entry) => {
