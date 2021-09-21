@@ -87,7 +87,7 @@ class App {
     // });
     this.bot.on('message', async (ctx, next) => {
       // reply('mesesage');
-      console.log(ctx);
+      // console.log(ctx);
       const { chat, message } = ctx;
       if (chat?.type !== 'group') {
         return next();
@@ -165,7 +165,6 @@ class App {
           await ctx.reply(`Changed Group name to ${groupObj.name}`);
         }
       }
-      console.log()
     })
     this.bot.on('new_chat_members', async (ctx) => {
       const { reply, message, chat } = ctx;
@@ -233,19 +232,6 @@ class App {
         ctx.reply('Not in group / none initialized group');
       }
     });
-    this.addCommand('test', 'random test string', async (ctx) => {
-      const { message, reply } = ctx;
-      if (!message || !message.text) {
-        return;
-      }
-      for (const entity of (message.entities || [])) {
-        if (entity.type === 'mention') {
-          ctx.reply(message.text.substr(entity.offset, entity.length));
-        }
-      }
-      console.log(message.entities);
-      ctx.reply(JSON.stringify(message));
-    });
     this.addCommand('newmembernotelegram', 'adds a member who has no telegram', async (ctx) => {
       const { message, reply, chat } = ctx;
       if (!chat || !chat.id || !message || !message.text || !message.entities) {
@@ -281,7 +267,6 @@ class App {
         return;
       }
       const groupObj = await GroupModel.findOne({ telegramId: chat.id });
-      console.log('c');
 
       if (!groupObj) {
         return ctx.reply('Not in group / none initialized group');
@@ -314,7 +299,7 @@ class App {
         ctx.reply('Not in group / none initialized group');
         return;
       }
-      console.log(`<b>Transactions</b>\n` + (await groupObj.evaluate()).transactions.map(transaction => `${transaction.from} -> ${transaction.to}: ${Math.round(transaction.amount * 100) / 100} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''}`).join('\n'));
+      // console.log(`<b>Transactions</b>\n` + (await groupObj.evaluate()).transactions.map(transaction => `${transaction.from} -> ${transaction.to}: ${Math.round(transaction.amount * 100) / 100} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''}`).join('\n'));
       ctx.replyWithHTML(`<b>Transactions</b>\n` + (await groupObj.evaluate()).transactions.map(transaction => `${transaction.from} -> ${transaction.to}: ${Math.round(transaction.amount * 100) / 100} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''}`).join('\n'));
       // const table = AsciiTable.factory({
       //     title: 'Transactions'
@@ -589,7 +574,6 @@ class App {
       }
       const help = str.split('\n');
       help.sort();
-      console.log('test');
       ctx.reply(help.join('\n'));
     });
   }

@@ -259,7 +259,7 @@ async function addPartial(ctx: MatchedContext<Context<Update>, "text">, useForei
   let done = false;
   while (!done && partialGroupMembers.length < group.members.length) {
     await new Promise<void>(async resolve => {
-      console.log(partialGroupMembers, 'a');
+      // console.log(partialGroupMembers, 'a');
       const buttons = group.members.filter(member => {
         return !partialGroupMembers.find(partialGroupMember => partialGroupMember.id === member.id);
       }).map(member => {
