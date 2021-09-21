@@ -185,21 +185,6 @@ class App {
         }
       }
     });
-    this.addCommand('initializegroup', 'initialize group, so bot knows it', async ctx => {
-      if (!ctx.chat) {
-        return;
-      }
-      if (await GroupModel.findOne({ telegramId: ctx.chat.id })) {
-        ctx.reply('Group already initialized');
-        return;
-      }
-
-      const group = new GroupModel();
-      group.name = 'title' in ctx.chat ? ctx.chat.title : '';
-      group.telegramId = ctx.chat.id;
-      await group.save();
-      ctx.reply('GroupModel initialized');
-    });
     this.addCommand('members', 'list all members', async ctx => {
       if (!ctx.chat || !ctx.chat.id) {
         return;
@@ -570,7 +555,7 @@ class App {
     this.addCommand('help', 'list all commands', (ctx) => {
       let str = '';
       for (const { command, description } of this.commands) {
-        str += `/${command} - ${description}`;
+        str += `/${command} - ${description}\n`;
       }
       const help = str.split('\n');
       help.sort();
