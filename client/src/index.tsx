@@ -1,14 +1,11 @@
-import * as React from "react";
+import React from "react";
 import * as ReactDOM from "react-dom";
 import 'typeface-roboto';
 
-import { Group } from "./components/Group";
-import CssBaseline from '@material-ui/core/CssBaseline';
+import { App } from "./app";
 //    //
+
 ReactDOM.render(
-  <React.Fragment>
-    <CssBaseline />
-    <Group/>
-  </React.Fragment>,
+  <App />,
   document.getElementById("example")
 );

@@ -3,25 +3,24 @@ import { roundToCent } from '../util';
 // import deepcopy from "ts-deepcopy";
 
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense} from "react";
 
-import Card from '@material-ui/core/Card';
-import CardContent from '@material-ui/core/CardContent';
-import Grid from '@material-ui/core/Grid';
-import Table from '@material-ui/core/Table';
-import TableCell from '@material-ui/core/TableCell';
-import TableRow from '@material-ui/core/TableRow';
-import TableHead from '@material-ui/core/TableHead';
-import TableBody from '@material-ui/core/TableBody';
-import Typography from '@material-ui/core/Typography';
+import { Card } from '@material-ui/core';
+import { CardContent } from '@material-ui/core';
+import { Grid } from '@material-ui/core';
+import { Table } from '@material-ui/core';
+import { TableCell } from '@material-ui/core';
+import { TableRow } from '@material-ui/core';
+import { TableHead } from '@material-ui/core';
+import { TableBody } from '@material-ui/core';
+import { Typography } from '@material-ui/core';
 import { EntryTable } from './EntryTable';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
+import { FormControlLabel } from '@material-ui/core';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
 import { MuiPickersUtilsProvider, DatePicker } from '@material-ui/pickers';
 import MomentUtils from '@date-io/moment';
-import { PlotWrapper } from './PlotWrapper';
-
+const PlotWrapper = React.lazy(() => import('./PlotWrapper'));
 import { API_BASE } from '../api';
 import { AppBar, Tabs, Tab } from '@material-ui/core';
 export enum sortRows {
@@ -132,7 +131,7 @@ export function Member({ member, i, dayMode, groupId }: { member: IMember, i: nu
   </Grid>;
 }
 
-export function Group() {
+export default function Group() {
   const [groupData, setGroupData] = useState<IGroupData>({ name: 'Loading. Are you logged in?', members: [], id: '', dayMode: false, transactions: [] });
   const [tab, setTab] = useState(0);
   const [groupId, setGroupId] = useState<string>();
@@ -216,7 +215,9 @@ export function Group() {
         </Grid>
       </TabPanel>
       <TabPanel value={tab} index={1}>
-        <PlotWrapper groupData={groupData} />
+        <Suspense fallback={<div>Loading...</div>}>
+          <PlotWrapper groupData={groupData} />
+        </Suspense>
       </TabPanel>
 
       <br />

@@ -1,13 +1,22 @@
 module.exports = {
     mode: 'production',
     entry: './src/index.tsx',
+    // output: {
+    //     filename: 'bundle.js',
+    //     path: __dirname + '/dist'
+    // },
     output: {
-        filename: 'bundle.js',
-        path: __dirname + '/dist'
+        // `filename` provides a template for naming your bundles (remember to use `[name]`)
+        filename: '[name].bundle.js',
+        // `chunkFilename` provides a template for naming code-split bundles (optional)
+        chunkFilename: '[name].bundle.js',
+        // `path` is the folder where Webpack will place your bundles
+        path: __dirname + '/dist',
+        // `publicPath` is where Webpack will load your bundles from (optional)
+        publicPath: 'dist/'
     },
-
     // Enable sourcemaps for debugging webpack's output.
-    // devtool: 'source-map',
+    devtool: 'eval-source-map',
 
     resolve: {
         // Add '.ts' and '.tsx' as resolvable extensions.
@@ -37,7 +46,7 @@ module.exports = {
             // // All output '.js' files will have any sourcemaps re-processed by 'source-map-loader'.
             // { enforce: 'pre', test: /\.js$/, loader: 'source-map-loader' }
         ]
-    },
+    }
 
     // When importing a module whose path matches one of the following, just
     // assume a corresponding global variable exists and use that instead.

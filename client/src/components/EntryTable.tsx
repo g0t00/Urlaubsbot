@@ -9,23 +9,8 @@ import {
   EditingState
 } from '@devexpress/dx-react-grid';
 import * as React from "react";
-import Paper from '@material-ui/core/Paper';
 import { DataTypeProvider, DataTypeProviderProps } from '@devexpress/dx-react-grid';
-import Dialog from '@material-ui/core/Dialog';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogContentText from '@material-ui/core/DialogContentText';
-import DialogActions from '@material-ui/core/DialogActions';
-import Button from '@material-ui/core/Button';
-import TextField from '@material-ui/core/TextField';
-import Select from '@material-ui/core/Select';
-import Input from '@material-ui/core/Input';
-import MenuItem from '@material-ui/core/MenuItem';
-import FormControl from '@material-ui/core/FormControl';
-import Chip from '@material-ui/core/Chip';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import Checkbox from '@material-ui/core/Checkbox';
-import FormGroup from '@material-ui/core/FormGroup';
+import { Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button, TextField, Select, Input, MenuItem, FormControl, Chip, FormControlLabel, Checkbox, FormGroup } from '@material-ui/core';
 import { MuiPickersUtilsProvider, DatePicker } from '@material-ui/pickers';
 import MomentUtils from '@date-io/moment';
 

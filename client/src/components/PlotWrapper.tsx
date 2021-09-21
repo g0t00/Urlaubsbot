@@ -13,7 +13,7 @@ interface IProps {
 interface IState {
   showPlot: boolean;
 }
-export class PlotWrapper extends React.Component<IProps, IState> {
+export default class PlotWrapper extends React.Component<IProps, IState> {
   constructor(p: IProps) {
     super(p);
     this.state = {

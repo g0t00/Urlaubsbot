@@ -19,13 +19,12 @@ services:
     build: ./dev-env
     volumes:
       - ./:/home/node/app
-    command: bash -c 'npm ci && npx concurrently "cd client && npm ci && npm run build-watch" "npm run build-watch" '
-  # build-client:
-  #   build: ./dev-env
-  #   volumes:
-  #     - ./:/home/node/app
-  #   working_dir: /home/node/app/client
-  #   command: npm run build-watch
+    command: bash -c 'npm ci && npm run build-watch'
+  build-client:
+    build: ./dev-env
+    volumes:
+      - ./:/home/node/app
+    command: bash -c 'cd client && npm ci && npm run build-watch'
   mongo:
     image: mongo:4.4.0-bionic
     volumes:
