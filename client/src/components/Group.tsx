@@ -19,7 +19,7 @@ import { FormControlLabel } from '@material-ui/core';
 import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
 import { MuiPickersUtilsProvider, DatePicker } from '@material-ui/pickers';
-import MomentUtils from '@date-io/moment';
+import DateFnsUtils from '@date-io/date-fns';
 const PlotWrapper = React.lazy(() => import('./PlotWrapper'));
 import { API_BASE } from '../api';
 import { AppBar, Tabs, Tab } from '@material-ui/core';
@@ -92,7 +92,7 @@ export function Member({ member, i, dayMode, groupId }: { member: IMember, i: nu
                 <TableRow>
                   <TableCell>start: </TableCell><TableCell>
 
-                    <MuiPickersUtilsProvider utils={MomentUtils}>
+                    <MuiPickersUtilsProvider utils={DateFnsUtils}>
                       <DatePicker
                         margin="normal"
                         label=""
@@ -104,7 +104,7 @@ export function Member({ member, i, dayMode, groupId }: { member: IMember, i: nu
                 </TableRow>
                 <TableRow>
                   <TableCell>end: </TableCell>
-                  <TableCell><MuiPickersUtilsProvider utils={MomentUtils}>
+                  <TableCell><MuiPickersUtilsProvider utils={DateFnsUtils}>
                     <DatePicker
                       margin="normal"
                       label=""
@@ -204,7 +204,7 @@ export default function Group() {
         />
       </FormGroup>
       <AppBar position="static">
-        <Tabs value={tab} onChange={(_, newValue) => setTab(newValue)} aria-label="simple tabs example">
+        <Tabs value={tab} onChange={(_, newValue: any) => setTab(newValue)} aria-label="simple tabs example">
           <Tab label="Summary" />
           <Tab label="Plots" />
         </Tabs>

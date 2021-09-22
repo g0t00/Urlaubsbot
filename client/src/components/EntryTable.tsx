@@ -6,16 +6,19 @@ import {
   SortingState,
   IntegratedSorting,
   ChangeSet,
-  EditingState
+  EditingState,
+  TableRow,
+  TableColumn
 } from '@devexpress/dx-react-grid';
 import * as React from "react";
 import { DataTypeProvider, DataTypeProviderProps } from '@devexpress/dx-react-grid';
 import { Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button, TextField, Select, Input, MenuItem, FormControl, Chip, FormControlLabel, Checkbox, FormGroup } from '@material-ui/core';
 import { MuiPickersUtilsProvider, DatePicker } from '@material-ui/pickers';
-import MomentUtils from '@date-io/moment';
+import DateFnsUtils from '@date-io/date-fns';
 
 
 import { API_BASE } from '../api';
+import { useState } from 'react';
 export interface IEntryTableProps {
   entries: IEntryFlat[];
   groupData: IGroupData;
@@ -27,7 +30,7 @@ const DateFormatter: React.ComponentType<DataTypeProvider.ValueFormatterProps> =
   return <span> - </span>;
 }
 const DateEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange, column }) => (
-  <MuiPickersUtilsProvider utils={MomentUtils}>
+  <MuiPickersUtilsProvider utils={DateFnsUtils}>
     <DatePicker
       margin="normal"
       label=""
@@ -45,7 +48,22 @@ const DateTypeProvider: React.ComponentType<DataTypeProviderProps> = (props: Dat
     {...props}
   />
 );
-
+interface IErrors {
+  [key: string]: boolean;
+}
+const EditCell = ({ errors, addedErrors, ...props }: any) => {
+  const { children } = props;
+  console.log(props, 'p');
+  return (
+    <TableEditColumn.Cell {...props}>
+      {React.Children.map(children, child => (
+        child?.props.id === 'commit'
+          ? React.cloneElement(child, { disabled: errors[props.tableRow.rowId] || addedErrors })
+          : child
+      ))}
+    </TableEditColumn.Cell>
+  );
+};
 
 
 const NumberEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange }) => (
@@ -67,23 +85,18 @@ const NumberTypeProvider: React.ComponentType<DataTypeProviderProps> = props => 
 );
 const getEntryId = (entry: IEntryFlat) => entry.uuid;
 
-export class EntryTable extends React.Component<IEntryTableProps, { deleteDialogOpen: boolean, deleteDialogEntry: IEntryFlat }> {
-  constructor(props: any) {
-    super(props);
-    this.state = { deleteDialogOpen: false, deleteDialogEntry: null };
-    this.commitChanges = this.commitChanges.bind(this);
-    this.deleteEntry = this.deleteEntry.bind(this);
-    this.payerEditor = this.payerEditor.bind(this);
-    this.payerTypeProvider = this.payerTypeProvider.bind(this);
-    this.partialGroupEditor = this.partialGroupEditor.bind(this);
-    this.partialGroupFormatter = this.partialGroupFormatter.bind(this);
+export function EntryTable(props: IEntryTableProps) {
+  const [state, setState] = useState<{ deleteDialogOpen: boolean, deleteDialogEntry?: IEntryFlat }>({
+    deleteDialogOpen: false
+  });
+  const [errors, setErrors] = useState({});
+  const [addedErrors, setAddedErrors] = useState({});
 
-  }
-  async commitChanges({ added, changed, deleted }: ChangeSet) {
+  async function commitChanges({ added, changed, deleted }: ChangeSet) {
     console.log(added, changed, deleted);
     if (deleted && deleted[0]) {
-      const entry = this.props.entries.find(entry => entry.uuid === deleted[0]);
-      this.setState({
+      const entry = props.entries.find(entry => entry.uuid === deleted[0]);
+      setState({
         deleteDialogOpen: true,
         deleteDialogEntry: entry
       });
@@ -93,7 +106,7 @@ export class EntryTable extends React.Component<IEntryTableProps, { deleteDialog
 
         const amount = parseFloat(add.amount);
         if (add.name !== '' && Number.isFinite(amount)) {
-          const member = this.props.groupData.members.find(member => member.name === add.name);
+          const member = props.groupData.members.find(member => member.name === add.name);
 
           const body = {
             memberId: member.id,
@@ -103,7 +116,7 @@ export class EntryTable extends React.Component<IEntryTableProps, { deleteDialog
             endTime: add.endTime,
             amount
           };
-          await fetch(API_BASE + '/' + this.props.groupData.id, {
+          await fetch(API_BASE + '/' + props.groupData.id, {
             method: 'POST',
             headers: {
               "Content-Type": "application/json; charset=utf-8",
@@ -120,7 +133,7 @@ export class EntryTable extends React.Component<IEntryTableProps, { deleteDialog
     if (changed) {
       for (const uuid of Object.keys(changed)) {
         const changes = changed[uuid];
-        await fetch(API_BASE + '/' + String(this.props.groupData.id) + '/' + uuid, {
+        await fetch(API_BASE + '/' + String(props.groupData.id) + '/' + uuid, {
           method: 'PUT',
           headers: {
             "Content-Type": "application/json; charset=utf-8",
@@ -132,8 +145,8 @@ export class EntryTable extends React.Component<IEntryTableProps, { deleteDialog
       }
     }
   }
-
-  payerEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange }) => {
+  //React.ComponentType<DataTypeProvider.ValueEditorProps>
+  function payerEditor({ value, onValueChange }: DataTypeProvider.ValueEditorProps) {
     return (
       <div>
 
@@ -143,7 +156,7 @@ export class EntryTable extends React.Component<IEntryTableProps, { deleteDialog
           onChange={event => onValueChange(event.target.value)}
           style={{ width: '100%' }}
         >
-          {this.props.groupData.members.map(member => (
+          {props.groupData.members.map(member => (
             <MenuItem value={member.name} key={member.id}>
               {member.name}
             </MenuItem>
@@ -152,23 +165,23 @@ export class EntryTable extends React.Component<IEntryTableProps, { deleteDialog
       </div>
     )
   };
-  payerTypeProvider: React.ComponentType<DataTypeProviderProps> = props => {
+  function PayerTypeProvider(props: DataTypeProviderProps) {
     return (
       <DataTypeProvider
-        editorComponent={this.payerEditor}
+        editorComponent={payerEditor}
         {...props}
       />
     )
   };
-  partialGroupFormatter: React.ComponentType<DataTypeProvider.ValueFormatterProps> = ({ value }: { value: number[] }) => {
+  function partialGroupFormatter({ value }: { value: number[] }) {
     if (value.length === 0) {
       return <span>All</span>;
     }
-    const valueSort = value.slice().sort((a, b) => (this.props.groupData.members.find(member => member.id === a)?.name ?? '').localeCompare(this.props.groupData.members.find(member => member.id === b)?.name));
-    return <span>{valueSort.map(partialGroupMemberId => this.props.groupData.members.find(member => member.id === partialGroupMemberId).name).join(', ')}</span>;
+    const valueSort = value.slice().sort((a, b) => (props.groupData.members.find(member => member.id === a)?.name ?? '').localeCompare(props.groupData.members.find(member => member.id === b)?.name));
+    return <span>{valueSort.map(partialGroupMemberId => props.groupData.members.find(member => member.id === partialGroupMemberId).name).join(', ')}</span>;
   }
-  partialGroupEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ value, onValueChange }) => (
-    <FormGroup>
+  function partialGroupEditor({ value, onValueChange }: DataTypeProvider.ValueEditorProps) {
+    return <FormGroup>
       <FormControlLabel
         control={
           <Checkbox
@@ -189,7 +202,7 @@ export class EntryTable extends React.Component<IEntryTableProps, { deleteDialog
           renderValue={(selected: number[]) => (
             <div>
               {selected.map((value: number) => {
-                const name = this.props.groupData.members.find(member => member.id === value).name;
+                const name = props.groupData.members.find(member => member.id === value).name;
                 return <Chip key={value} label={name} />
               })}
             </div>
@@ -197,7 +210,7 @@ export class EntryTable extends React.Component<IEntryTableProps, { deleteDialog
           style={{ width: '100%' }}
 
         >
-          {this.props.groupData.members.map(member => (
+          {props.groupData.members.map(member => (
             <MenuItem key={member.id} value={member.id}>
               {member.name}
             </MenuItem>
@@ -205,92 +218,113 @@ export class EntryTable extends React.Component<IEntryTableProps, { deleteDialog
         </Select>
       </FormControl>
     </FormGroup>
-  );
-  partialGroupProvider: React.ComponentType<DataTypeProviderProps> = (props: DataTypeProviderProps) => (
-    <DataTypeProvider
-      formatterComponent={this.partialGroupFormatter}
-      editorComponent={this.partialGroupEditor}
+  };
+  function PartialGroupProvider(props: DataTypeProviderProps) {
+    return <DataTypeProvider
+      formatterComponent={partialGroupFormatter}
+      editorComponent={partialGroupEditor}
       {...props}
     />
-  );
-  async deleteEntry() {
-    await fetch(API_BASE + `/${this.props.groupData.id}/${this.state.deleteDialogEntry.uuid}`, { method: 'DELETE', headers: { "Auth": localStorage.getItem('user') } });
-    console.log(this.state.deleteDialogEntry);
-    this.setState({ deleteDialogOpen: false });
+  };
+  async function deleteEntry() {
+    await fetch(API_BASE + `/${props.groupData.id}/${state.deleteDialogEntry.uuid}`, { method: 'DELETE', headers: { "Auth": localStorage.getItem('user') } });
+    console.log(state.deleteDialogEntry);
+    setState({ ...state, deleteDialogOpen: false });
   }
-  render() {
-    return (
-      <>
-        <Paper>
-          <Grid
-            rows={this.props.entries}
-            columns={
-              [
-                { name: 'name', title: 'Payer' },
-                { name: 'description', title: 'Description' },
-                { name: 'partialGroupMembers', title: 'For' },
-                { name: 'amount', title: 'Amount' },
-                { name: 'time', title: 'Entry/Start date' },
-                { name: 'endTime', title: 'End Date' },
-              ]}
-            getRowId={getEntryId}
-          >
-            <SortingState defaultSorting={[{ columnName: 'time', direction: 'desc' }]} />
-            <IntegratedSorting />
-            <EditingState
-              columnExtensions={[
-                // { columnName: 'time', editingEnabled: false },
-              ]}
-              onCommitChanges={this.commitChanges}
-            />
-            <Table />
-            <DateTypeProvider for={['time']} />
-            <DateTypeProvider for={['endTime']} />
-            <NumberTypeProvider for={['amount']} />
-            <this.partialGroupProvider
-              for={['partialGroupMembers']}
-            />
-            <this.payerTypeProvider
-              for={['name']}
-            />
+  console.log('asd1')
+  return <>
+    <Paper>
+      <Grid
+        rows={props.entries}
+        columns={
+          [
+            { name: 'name', title: 'Payer' },
+            { name: 'description', title: 'Description' },
+            { name: 'partialGroupMembers', title: 'For' },
+            { name: 'amount', title: 'Amount' },
+            { name: 'time', title: 'Entry/Start date' },
+            { name: 'endTime', title: 'End Date' },
+          ]}
+        getRowId={getEntryId}
+      >
+        <SortingState defaultSorting={[{ columnName: 'time', direction: 'desc' }]} />
+        <IntegratedSorting />
+        <EditingState
+          onRowChangesChange={rowChanges => {
+            const errors = Object.entries(rowChanges).reduce(
+              (acc, [rowId, row]) => {
+                return {
+                  ...acc,
+                  [rowId]: row.name === '' || row.amount === '' || row.description === '',
+                }
+              }, {});
+            console.log('c', errors);
+            setErrors(errors)
+          }}
+          onAddedRowsChange={addedRows => {
+            const errors = Object.entries(addedRows).reduce(
+              (acc, [rowId, row]) => {
+                return {
+                  ...acc,
+                  [rowId]: typeof row.name !== 'string' || row.name === '' || typeof row.amount !== 'string' ||
+                    row.amount === '' || typeof row.description !== 'string' || row.description === '' || typeof row.name !== 'string' || row.name === '',
+                }
+              }, {});
+            console.log('a', errors);
+            setAddedErrors(errors)
+          }}
+          columnExtensions={[
+            // { columnName: 'time', editingEnabled: false },
+          ]}
+          onCommitChanges={commitChanges}
+        />
+        <Table />
+        <DateTypeProvider for={['time']} />
+        <DateTypeProvider for={['endTime']} />
+        <NumberTypeProvider for={['amount']} />
+        <PartialGroupProvider
+          for={['partialGroupMembers']}
+        />
+        <PayerTypeProvider
+          for={['name']}
+        />
 
-            <TableHeaderRow showSortingControls />
-            <TableEditRow />
-            <TableEditColumn
-              showAddCommand
-              showEditCommand
-              showDeleteCommand
-            />
-          </Grid>
-        </Paper>
-        <Dialog
-          open={this.state.deleteDialogOpen}
-          onClose={() => this.setState({ deleteDialogOpen: false })}
-          aria-labelledby="alert-dialog-title"
-          aria-describedby="alert-dialog-description"
-        >
-          <DialogTitle id="alert-dialog-title">{"Remove Entry?"}</DialogTitle>
-          <DialogContent>
-            <DialogContentText id="alert-dialog-description">
-              {this.state.deleteDialogEntry &&
-                <><>{this.state.deleteDialogEntry.name}<br /></>
-                  <>{this.state.deleteDialogEntry.description}<br /></>
-                  <>{this.state.deleteDialogEntry.amount}<br /></>
-                  <>{this.state.deleteDialogEntry.partialGroupMembers.join(', ')}<br /></>
-                  <>{this.state.deleteDialogEntry.time.toLocaleString()}<br /></></>
-              }
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => this.setState({ deleteDialogOpen: false })} color="primary">
-              Cancel
-            </Button>
-            <Button onClick={this.deleteEntry} color="primary" autoFocus>
-              Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </>
-    );
-  }
+        <TableHeaderRow showSortingControls />
+        <TableEditRow />
+        <TableEditColumn
+          showAddCommand
+          showEditCommand
+          showDeleteCommand
+          cellComponent={props => <EditCell {...props} errors={errors} addedErrors={addedErrors}/>}
+        />
+      </Grid>
+    </Paper>
+    <Dialog
+      open={state.deleteDialogOpen}
+      onClose={() => setState({ deleteDialogOpen: false })}
+      aria-labelledby="alert-dialog-title"
+      aria-describedby="alert-dialog-description"
+    >
+      <DialogTitle id="alert-dialog-title">{"Remove Entry?"}</DialogTitle>
+      <DialogContent>
+        <DialogContentText id="alert-dialog-description">
+          {state.deleteDialogEntry &&
+            <><>{state.deleteDialogEntry.name}<br /></>
+              <>{state.deleteDialogEntry.description}<br /></>
+              <>{state.deleteDialogEntry.amount}<br /></>
+              <>{state.deleteDialogEntry.partialGroupMembers.join(', ')}<br /></>
+              <>{state.deleteDialogEntry.time.toLocaleString()}<br /></></>
+          }
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setState({ deleteDialogOpen: false })} color="primary">
+          Cancel
+        </Button>
+        <Button onClick={deleteEntry} color="primary" autoFocus>
+          Delete
+        </Button>
+      </DialogActions>
+    </Dialog>
+  </>;
 }
