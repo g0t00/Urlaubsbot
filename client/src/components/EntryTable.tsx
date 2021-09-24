@@ -93,7 +93,6 @@ export function EntryTable(props: IEntryTableProps) {
   const [addedErrors, setAddedErrors] = useState({});
 
   async function commitChanges({ added, changed, deleted }: ChangeSet) {
-    console.log(added, changed, deleted);
     if (deleted && deleted[0]) {
       const entry = props.entries.find(entry => entry.uuid === deleted[0]);
       setState({
