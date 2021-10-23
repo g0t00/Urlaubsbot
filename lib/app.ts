@@ -271,8 +271,8 @@ class App {
       await groupObj.save();
       while (groupObj.members.reduce((prev, member) => prev && member.readyCheckConfirmed, true) === false) {
         await new Promise<void>(resolve => {
-          const keyboard = callbackHandler.getKeyboard([
-            groupObj.members.map(member => ({
+          const keyboard = callbackHandler.getKeyboard(
+            groupObj.members.map(member => [({
               text: `${member.name} ${member.readyCheckConfirmed ? `✅` : `🔳`}`,
               clicked: async (user) => {
                 console.log('aa', user, groupObj.members);
@@ -281,7 +281,7 @@ class App {
                 resolve();
                 return true;
               }
-            }))]);
+            })]));
 
           ctx.reply(`Ready Check. Please confirm you added everything...\n`,
             Markup
@@ -649,8 +649,8 @@ class App {
     await groupObj.save();
     while ((groupObj.transactions as ITransaction[])?.reduce((prev, trans) => prev && trans.confirmed, true) === false) {
       await new Promise<void>(resolve => {
-        const keyboard = callbackHandler.getKeyboard([(groupObj.transactions as ITransaction[]).map(transaction => ({
-          text: `${transaction.from} -> ${transaction.to} ${transaction.confirmed ? `✅` : `🔳`}`,
+        const keyboard = callbackHandler.getKeyboard((groupObj.transactions as ITransaction[]).map(transaction => [({
+          text: `${transaction.from} -> ${transaction.to} ${Math.round(transaction.amount * 100) / 100} ${transaction.confirmed ? `✅` : `🔳`}`,
           clicked: async () => {
             transaction.confirmed = !transaction.confirmed;
 
@@ -658,11 +658,17 @@ class App {
             resolve();
             return true;
           }
-        }))]);
+        })]));
+        console.log(Markup
+          .inlineKeyboard(keyboard));
         this.bot.telegram.sendMessage(groupObj.telegramId, `Transaction Check. Please confirm Transactions...\n` +
           (groupObj.transactions as ITransaction[]).map(transaction => `${transaction.from} -> ${transaction.to}: ${Math.round(transaction.amount * 100) / 100} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''} ` + (transaction.confirmed ? `✅` : `🔳`)).join('\n'),
-          Markup
-            .inlineKeyboard(keyboard)
+          {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: keyboard,
+            }
+          }
         );
 
       });

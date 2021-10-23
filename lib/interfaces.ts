@@ -33,6 +33,7 @@ export interface IGroupMemberChange {
 export interface ITransaction {
   from: string,
   to: string;
+  toId: number;
   amount: number;
   paypalLink?: string;
   confirmed: boolean;

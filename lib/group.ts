@@ -158,6 +158,15 @@ export class Group {
     });
     let transactions: ITransaction[] = [];
     if (this.transactions !== null) {
+      for (const transaction of this.transactions) {
+        if (transaction.paypalLink === undefined) {
+          const mapping = await PaypalMappingModel.findOne({ telegramId: transaction.toId });
+          if (mapping) {
+            transaction.paypalLink = mapping.link + '/' + roundToCent(transaction.amount);
+            await this.save();
+          }
+        }
+      }
       transactions = this.transactions;
     } else {
       let equalized = false;
@@ -178,6 +187,7 @@ export class Group {
         const transaction: ITransaction = {
           from: from.name,
           to: to.name,
+          toId: to.id,
           confirmed: false,
           amount
         };
