@@ -19,7 +19,6 @@ import DateFnsUtils from '@date-io/date-fns';
 
 import { API_BASE } from '../api';
 import { useState } from 'react';
-import { group } from 'console';
 export interface IEntryTableProps {
   entries: IEntryFlat[];
   groupData: IGroupData;
