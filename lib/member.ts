@@ -16,4 +16,6 @@ export class Member {
   end: Date;
   @prop({default: true})
   allTime: boolean;
+  @prop({default: false})
+  readyCheckConfirmed: boolean;
 };

@@ -3,7 +3,7 @@ import { roundToCent } from '../util';
 // import deepcopy from "ts-deepcopy";
 
 import * as React from "react";
-import { useEffect, useState, Suspense} from "react";
+import { useEffect, useState, Suspense } from "react";
 
 import { Card } from '@material-ui/core';
 import { CardContent } from '@material-ui/core';
@@ -64,7 +64,7 @@ async function valueChanged(memberId: number, groupId: string, change: any) {
   });
   console.log(memberId, change);
 }
-export function Member({ member, i, dayMode, groupId }: { member: IMember, i: number, dayMode: boolean, groupId: string }) {
+export function Member({ member, i, groupId, groupData }: { member: IMember, i: number, groupId: string, groupData?: IGroupData }) {
   return <Grid item xs={12} sm={6} md={3} key={i}>
     <Card>
       <CardContent>
@@ -72,7 +72,7 @@ export function Member({ member, i, dayMode, groupId }: { member: IMember, i: nu
           {member.name}
         </Typography>
         <Table><TableBody>
-          {dayMode && <>
+          {groupData.dayMode && <>
             <TableRow>
               <TableCell colSpan={2}><FormControlLabel
                 control={
@@ -124,6 +124,13 @@ export function Member({ member, i, dayMode, groupId }: { member: IMember, i: nu
             <TableCell>{member.toPay - member.hasPayed > 0 ? `Has still to Pay` : 'Gets: '}</TableCell>
             <TableCell className='memberAmount' >{Math.abs(roundToCent(member.toPay - member.hasPayed))}</TableCell>
           </TableRow>
+          {groupData?.state === 'readyCheck' &&
+            <TableRow>
+              <TableCell>Ready Confirmed: </TableCell>
+              <TableCell>
+                {member.readyCheckConfirmed ? `✅` : `🔳`}
+              </TableCell>
+            </TableRow>}
         </TableBody></Table>
 
       </CardContent>
@@ -132,7 +139,7 @@ export function Member({ member, i, dayMode, groupId }: { member: IMember, i: nu
 }
 
 export default function Group() {
-  const [groupData, setGroupData] = useState<IGroupData>({ name: 'Loading. Are you logged in?', members: [], id: '', dayMode: false, transactions: [] });
+  const [groupData, setGroupData] = useState<IGroupData | undefined>();
   const [tab, setTab] = useState(0);
   const [groupId, setGroupId] = useState<string>();
   useEffect(() => {
@@ -147,6 +154,7 @@ export default function Group() {
         const json = JSON.parse(data);
         for (const member of json.members) {
           for (const entry of member.entries) {
+
             entry.time = new Date(entry.time);
             if (typeof entry.endTime !== 'undefined') {
               entry.endTime = new Date(entry.endTime);
@@ -166,6 +174,9 @@ export default function Group() {
 
   }, [groupId])
   async function changeDayMode(event: any) {
+    if (groupData === undefined) {
+      return;
+    }
     await fetch(API_BASE + '/' + String(groupData.id) + '/dayMode', {
       method: 'POST',
       headers: {
@@ -181,7 +192,7 @@ export default function Group() {
 
 
   const entriesFlat: IEntryFlat[] = [];
-  for (const member of groupData.members) {
+  for (const member of (groupData?.members ?? [])) {
     for (const entry of member.entries) {
       entriesFlat.push({ name: member.name, ...entry });
     }
@@ -189,12 +200,12 @@ export default function Group() {
   // <pre>HI{JSON.stringify(groupData)}</pre>
   return (
     <div>
-      <h1>Group {groupData.name}</h1>
+      <h1>Group {groupData?.name} State: {groupData?.state} </h1>
       <FormGroup row>
         <FormControlLabel
           control={
             <Checkbox
-              checked={groupData.dayMode}
+              checked={groupData?.dayMode}
               onChange={(event) => changeDayMode(event)}
               value="DayMode"
               color="primary"
@@ -211,7 +222,7 @@ export default function Group() {
       </AppBar>
       <TabPanel value={tab} index={0}>
         <Grid container spacing={10}>
-          {groupData.members.map((member, i) => <Member member={member} i={i} groupId={groupId} dayMode={groupData.dayMode} />)}
+          {(groupData?.members ?? []).map((member, i) => <Member member={member} i={i} groupId={groupId} groupData={groupData} />)}
         </Grid>
       </TabPanel>
       <TabPanel value={tab} index={1}>
@@ -243,10 +254,13 @@ export default function Group() {
                 <TableCell>
                   Paypal
                 </TableCell>
+                <TableCell>
+                  Confirmed
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {groupData.transactions.map(transaction =>
+              {(groupData?.transactions ?? []).map(transaction =>
                 <TableRow>
                   <TableCell>
                     {transaction.from}
@@ -259,6 +273,9 @@ export default function Group() {
                   </TableCell>
                   <TableCell>
                     {transaction.paypalLink && <a href={transaction.paypalLink}>Pay</a>}
+                  </TableCell>
+                  <TableCell>
+                    {transaction.confirmed ? `✅` : `🔳`}
                   </TableCell>
                 </TableRow>
               )}

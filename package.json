@@ -47,6 +47,7 @@
     "@types/node": "^12.12.54",
     "@types/uuid": "^3.4.9",
     "source-map-loader": "^0.2.4",
-    "typescript": "^4.3.5"
+    "typescript": "^4.3.5",
+    "utility-types": "^3.10.0"
   }
 }

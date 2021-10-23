@@ -1,13 +1,14 @@
 import * as EventEmitter from 'events';
 import { Context, Markup } from 'telegraf';
-import { Update } from 'telegraf/typings/core/types/typegram';
+import { Update, User } from 'telegraf/typings/core/types/typegram';
 import { WizardContextWizard } from 'telegraf/typings/scenes';
 import { v1 as uuid } from 'uuid';
 import { MatchedContext } from './add';
 import { app } from './app';
 export interface IButton {
   text: string;
-  clicked: () => Promise<boolean>;
+  clicked: (from: User) => Promise<boolean>;
+
 }
 export class CallbackHandler {
   constructor() {
@@ -39,7 +40,7 @@ export class CallbackHandler {
     this.callbackEmitter.once(keyboardUuid, async (index: number, index2: number, ctx: Context<Update> & { match: RegExpMatchArray }) => {
       console.log('asd', index, index2);
       const clickHandler = button2d[index][index2].clicked;
-      if (ctx.callbackQuery && ctx.callbackQuery.message && await clickHandler()) {
+      if (ctx.callbackQuery && ctx.callbackQuery.message && await clickHandler(ctx.callbackQuery.from)) {
         console.log('Deleted callback');
         try {
           ctx.telegram.deleteMessage(ctx.callbackQuery.message.chat.id, ctx.callbackQuery.message.message_id);

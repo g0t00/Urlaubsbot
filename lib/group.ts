@@ -1,6 +1,6 @@
 // import {Document, Schema, Model, model} from 'mongoose';
 import { prop, post, DocumentType, arrayProp, pre, getModelForClass } from '@typegoose/typegoose';
-import { IGroupData, ITransaction, IMember } from './interfaces'
+import { IGroupData, ITransaction, IMember, GroupState } from './interfaces'
 const AsciiTable = require('ascii-table');
 import { v1 as uuid } from 'uuid';
 import * as _ from 'lodash';
@@ -14,6 +14,7 @@ export interface IMemberWithSum extends Member {
   sum: number;
 }
 import { PaypalMappingModel } from './paypalMapping';
+import { group } from 'console';
 export class GroupBannedUser {
   @prop({required: true})
   name: string;
@@ -42,6 +43,10 @@ export class Group {
     default: []
   })
   groupBannedUsers: GroupBannedUser[];
+  @prop({ default: 'initial'})
+  public state: GroupState;
+  @prop({default: null})
+  public transactions: ITransaction[] | null;
   @prop({default: false})
   dayMode: boolean;
   @prop()
@@ -145,56 +150,64 @@ export class Group {
         start: member.start,
         end: member.end,
         allTime: member.allTime,
+        readyCheckConfirmed: member.readyCheckConfirmed,
         hasPayed,
         toPay,
         entries: entries
       };
     });
-    const transactions: ITransaction[] = [];
-    let equalized = false;
-    interface IMemberWithOpen extends IMember {
-      open: number;
-    }
-    const membersCopy: IMemberWithOpen[]  = JSON.parse(JSON.stringify(members));
-    for (const member of membersCopy) {
-      member.open = member.hasPayed - member.toPay;
-    }
-    let overrun = 0;
-    while (!equalized && overrun < 100) {
-      membersCopy.sort((a, b) => a.open - b.open);
-      const from = membersCopy[0];
-      const to = membersCopy[membersCopy.length - 1];
-      const amount = Math.min(Math.abs(from.open), to.open);
-      const mapping = await PaypalMappingModel.findOne({telegramId: to.id});
-      const transaction: ITransaction = {
-        from: from.name,
-        to: to.name,
-        amount
-      };
-      if (mapping) {
-        transaction.paypalLink = mapping.link + '/' + roundToCent(amount);
+    let transactions: ITransaction[] = [];
+    if (this.transactions !== null) {
+      transactions = this.transactions;
+    } else {
+      let equalized = false;
+      interface IMemberWithOpen extends IMember {
+        open: number;
       }
-      transactions.push(transaction);
-      from.open += amount;
-      to.open -= amount;
-      equalized = true;
+      const membersCopy: IMemberWithOpen[]  = JSON.parse(JSON.stringify(members));
       for (const member of membersCopy) {
-        if (member.open > 0.01) {
-          equalized = false;
-        }
+        member.open = member.hasPayed - member.toPay;
       }
-      overrun++;
-    }
-    if (overrun === 100) {
-      console.error(`overrun`);
+      let overrun = 0;
+      while (!equalized && overrun < 100) {
+        membersCopy.sort((a, b) => a.open - b.open);
+        const from = membersCopy[0];
+        const to = membersCopy[membersCopy.length - 1];
+        const amount = Math.min(Math.abs(from.open), to.open);
+        const mapping = await PaypalMappingModel.findOne({telegramId: to.id});
+        const transaction: ITransaction = {
+          from: from.name,
+          to: to.name,
+          confirmed: false,
+          amount
+        };
+        if (mapping) {
+          transaction.paypalLink = mapping.link + '/' + roundToCent(amount);
+        }
+        transactions.push(transaction);
+        from.open += amount;
+        to.open -= amount;
+        equalized = true;
+        for (const member of membersCopy) {
+          if (member.open > 0.01) {
+            equalized = false;
+          }
+        }
+        overrun++;
+      }
+      if (overrun === 100) {
+        console.error(`overrun`);
+      }
+
     }
     console.timeEnd('evaluate');
     return {
       id: this.id,
       name: this.name || '',
       dayMode: this.dayMode,
+      state: this.state,
       members,
-      transactions: overrun < 100 ? transactions : []
+      transactions
     };
   }
 

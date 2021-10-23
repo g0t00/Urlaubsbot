@@ -1,9 +1,11 @@
+export type GroupState = 'initial' | 'readyCheck' | 'transactionCheck' | 'done';
 export interface IGroupData {
   members: IMember[];
   name: string;
   id: string;
   dayMode: boolean;
   transactions: ITransaction[];
+  state: GroupState;
 }
 export interface IMember {
   id: number;
@@ -14,6 +16,7 @@ export interface IMember {
   end: Date;
   allTime: boolean;
   entries: IEntry[];
+  readyCheckConfirmed: boolean;
 }
 export interface IEntry {
   description: string;
@@ -32,4 +35,5 @@ export interface ITransaction {
   to: string;
   amount: number;
   paypalLink?: string;
+  confirmed: boolean;
 }

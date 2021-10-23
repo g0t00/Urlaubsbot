@@ -42,6 +42,10 @@ async function addOther(ctx: MatchedContext<Context<Update>, "text">, useForeign
     ctx.reply('Not in group / none initialized group');
     return;
   }
+  if (groupObj.state !== 'initial' && groupObj.state !== 'readyCheck') {
+    ctx.reply(`Group state is ${groupObj.state}`);
+    return;
+  }
 
   const messageText = message.text.substr(message.entities[0].length + 1);
   let matches = messageText.match(/(-\s?)?\d+[.,]?\d*/);
@@ -66,7 +70,11 @@ async function addOther(ctx: MatchedContext<Context<Update>, "text">, useForeign
   }
   let description = messageText.replace(/\d+[.,]?\d*/, '').trim();
   if (description === '') {
-    description = 'no desc';
+    const replyObj = await ctx.reply(`Please enter description.@${message.from.username}`, {
+      reply_markup: { force_reply: true, selective: true }
+    });
+    description = await callbackHandler.getReply(chat.id, replyObj.message_id);
+    app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
   }
   const {members} = groupObj;
   const buttons = members.map(member => {
@@ -99,6 +107,10 @@ async function add(ctx: MatchedContext<Context<Update>, "text">, useForeign: boo
 
   if (!groupObj) {
     ctx.reply('Not in group / none initialized group');
+    return;
+  }
+  if (groupObj.state !== 'initial' && groupObj.state !== 'readyCheck') {
+    ctx.reply(`Group state is ${groupObj.state}`);
     return;
   }
   let member = groupObj.getMemberById(message.from.id);
@@ -189,6 +201,10 @@ async function addPartial(ctx: MatchedContext<Context<Update>, "text">, useForei
   const member = groupObj.getMemberById(message.from.id);
   if (member === null) {
     ctx.reply('You are not in this group. Please use /newMember first!');
+    return;
+  }
+  if (groupObj.state !== 'initial' && groupObj.state !== 'readyCheck') {
+    ctx.reply(`Group state is ${groupObj.state}`);
     return;
   }
   const group = groupObj;

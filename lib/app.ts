@@ -1,16 +1,20 @@
-import { Telegraf } from 'telegraf';
+import { Context, Telegraf } from 'telegraf';
 import { Markup, Middleware } from 'telegraf';
 import { connect } from 'mongoose';
 import { addMiddleware } from './add';
 import * as express from 'express';
 import { callbackHandler, IButton } from './callback-handler';
+import { PromiseType } from 'utility-types';
 connect('mongodb://mongo/urlaubsbot', { useNewUrlParser: true });
 const AsciiTable = require('ascii-table');
+import { prop, post, DocumentType, arrayProp, pre, getModelForClass } from '@typegoose/typegoose';
 
 import { web } from './web';
-import { GroupModel } from './group';
+import { Group, GroupModel } from './group';
 import { PaypalMappingModel } from './paypalMapping';
 import { runInThisContext } from 'vm';
+import { ITransaction } from './interfaces';
+import { tr } from 'date-fns/locale';
 // import { Sheet } from'./sheet';
 if (typeof process.env.TOKEN !== 'string') {
   throw new Error('Token not set!');
@@ -118,7 +122,7 @@ class App {
       if (!pinned) {
         const groupMemberInfo = await this.bot.telegram.getChatMember(groupObj.telegramId, botInfo.id);
         if (groupMemberInfo.status !== 'administrator' || groupMemberInfo.can_pin_messages !== true) {
-          if (groupObj.pinningRightsCooldown === undefined || new Date().getDate() - groupObj.pinningRightsCooldown.getDate() > 1000*60*60*24) {
+          if (groupObj.pinningRightsCooldown === undefined || new Date().getDate() - groupObj.pinningRightsCooldown.getDate() > 1000 * 60 * 60 * 24) {
             const message = await this.bot.telegram.sendMessage(groupObj.telegramId, 'Please give Pinning Rights.');
             groupObj.pinningRightsCooldown = new Date();
             await groupObj.save();
@@ -245,6 +249,80 @@ class App {
       if (!await groupObj.addMember(memberName, memberId)) {
         ctx.reply('You are already in group!');
       }
+    });
+
+    this.addCommand('readycheck', 'Initiates Ready Check', async ctx => {
+      const { chat } = ctx;
+      if (!chat || !chat.id) {
+        return;
+      }
+      const groupObj = await GroupModel.findOne({ telegramId: chat.id });
+      if (!groupObj) {
+        return ctx.reply('Not in group / none initialized group');
+      }
+      if (groupObj.state === 'transactionCheck') {
+        return this.runTransactionCheck(groupObj);
+      }
+      if (groupObj.state !== 'initial' && groupObj.state !== 'readyCheck') {
+        return ctx.reply(`Group already in state ${groupObj.state}!`);
+
+      }
+      groupObj.state = 'readyCheck';
+      await groupObj.save();
+      while (groupObj.members.reduce((prev, member) => prev && member.readyCheckConfirmed, true) === false) {
+        await new Promise<void>(resolve => {
+          const keyboard = callbackHandler.getKeyboard([
+            groupObj.members.map(member => ({
+              text: `${member.name} ${member.readyCheckConfirmed ? `✅` : `🔳`}`,
+              clicked: async (user) => {
+                console.log('aa', user, groupObj.members);
+                member.readyCheckConfirmed = !member.readyCheckConfirmed;
+                await groupObj.save();
+                resolve();
+                return true;
+              }
+            }))]);
+
+          ctx.reply(`Ready Check. Please confirm you added everything...\n`,
+            Markup
+              .inlineKeyboard(keyboard)
+          );
+
+        })
+
+      }
+      this.runTransactionCheck(groupObj);
+      // keyboard.push([Markup.callbackButton('cancel', 'c')]);
+
+
+    });
+    this.addCommand('rollback', 'Rollbackes Ready Check', async ctx => {
+      const { chat } = ctx;
+      if (!chat || !chat.id) {
+        return;
+      }
+      const groupObj = await GroupModel.findOne({ telegramId: chat.id });
+      if (!groupObj) {
+        return ctx.reply('Not in group / none initialized group');
+      }
+      if (groupObj.state === 'initial' || groupObj.state === 'readyCheck') {
+        return ctx.reply(`Group already in state ${groupObj.state}!`);
+
+      }
+      return ctx.reply(`Confirm rollback Readycheck...\n`,
+        Markup
+          .inlineKeyboard(callbackHandler.getKeyboard([[{
+            text: '💣 Confirm',
+            clicked: async (user) => {
+              groupObj.state = 'initial';
+              for (const member of groupObj.members) {
+                member.readyCheckConfirmed = false;
+              }
+              groupObj.transactions = null;
+              await groupObj.save();
+              return true;
+            }
+          }]])));
     });
     this.addCommand('groupinfo', 'gets Link to fancy group view', async (ctx) => {
       const { chat } = ctx;
@@ -545,7 +623,7 @@ class App {
       const groups = await GroupModel.find({ 'members.id': chat.id });
       ctx.reply("Listing all groups where you and another person is member...");
       for (const group of groups) {
-        if (group.members.length > 1) {
+        if (group.members.length > 1 && group.state !== 'done') {
           const table = await group.getSummaryTable();
           ctx.replyWithHTML(`<code>Group '${group.name}'\n${table} </code>`);
         }
@@ -561,6 +639,37 @@ class App {
       help.sort();
       ctx.reply(help.join('\n'));
     });
+  }
+  async runTransactionCheck(groupObj: DocumentType<Group>) {
+    groupObj.state = 'transactionCheck';
+    console.log(groupObj);
+    const evaluation = await groupObj.evaluate();
+    console.log(groupObj);
+    groupObj.transactions = evaluation.transactions;
+    await groupObj.save();
+    while ((groupObj.transactions as ITransaction[])?.reduce((prev, trans) => prev && trans.confirmed, true) === false) {
+      await new Promise<void>(resolve => {
+        const keyboard = callbackHandler.getKeyboard([(groupObj.transactions as ITransaction[]).map(transaction => ({
+          text: `${transaction.from} -> ${transaction.to} ${transaction.confirmed ? `✅` : `🔳`}`,
+          clicked: async () => {
+            transaction.confirmed = !transaction.confirmed;
+
+            await groupObj.save();
+            resolve();
+            return true;
+          }
+        }))]);
+        this.bot.telegram.sendMessage(groupObj.telegramId, `Transaction Check. Please confirm Transactions...\n` +
+          (groupObj.transactions as ITransaction[]).map(transaction => `${transaction.from} -> ${transaction.to}: ${Math.round(transaction.amount * 100) / 100} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''} ` + (transaction.confirmed ? `✅` : `🔳`)).join('\n'),
+          Markup
+            .inlineKeyboard(keyboard)
+        );
+
+      });
+    }
+    groupObj.state = 'done';
+    await groupObj.save();
+    this.bot.telegram.sendMessage(groupObj.telegramId, `Group = done 🎆🎆🎆`);
   }
 }
 

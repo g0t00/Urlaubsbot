@@ -19,6 +19,7 @@ import DateFnsUtils from '@date-io/date-fns';
 
 import { API_BASE } from '../api';
 import { useState } from 'react';
+import { group } from 'console';
 export interface IEntryTableProps {
   entries: IEntryFlat[];
   groupData: IGroupData;
@@ -291,9 +292,9 @@ export function EntryTable(props: IEntryTableProps) {
         <TableHeaderRow showSortingControls />
         <TableEditRow />
         <TableEditColumn
-          showAddCommand
-          showEditCommand
-          showDeleteCommand
+          showAddCommand={props.groupData !== undefined && (props.groupData.state === 'initial' || props.groupData.state === 'readyCheck')}
+          showEditCommand={props.groupData !== undefined && (props.groupData.state === 'initial' || props.groupData.state === 'readyCheck')}
+          showDeleteCommand={props.groupData !== undefined && (props.groupData.state === 'initial' || props.groupData.state === 'readyCheck')}
           cellComponent={props => <EditCell {...props} errors={errors} addedErrors={addedErrors}/>}
         />
       </Grid>
