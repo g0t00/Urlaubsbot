@@ -250,7 +250,19 @@ class App {
         ctx.reply('You are already in group!');
       }
     });
-
+    this.addCommand('done', 'Set the Group to done directly', async ctx => {
+      const { chat } = ctx;
+      if (!chat || !chat.id) {
+        return;
+      }
+      const groupObj = await GroupModel.findOne({ telegramId: chat.id });
+      if (!groupObj) {
+        return ctx.reply('Not in group / none initialized group');
+      }
+      groupObj.state = 'done';
+      await groupObj.save();
+      ctx.reply('Group = Done!');
+    })
     this.addCommand('readycheck', 'Initiates Ready Check', async ctx => {
       const { chat } = ctx;
       if (!chat || !chat.id) {
