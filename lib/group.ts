@@ -88,7 +88,6 @@ export class Group {
   };
 
   async evaluate(this: DocumentType<Group>): Promise<IGroupData> {
-    console.time('evaluate');
     const members = this.members.map(member => {
       let hasPayed = 0;
       let toPay = 0;
@@ -139,10 +138,7 @@ export class Group {
           partialGroupMembers}
           ;
         });
-      // const round = (num: number) =>  Math.sign(num) * Math.round(Math.abs(num));
 
-      // hasPayed = round(hasPayed * 100) / 100;
-      // toPay = round(toPay * 100) / 100;
 
       return {
         id: member.id,
@@ -210,7 +206,6 @@ export class Group {
       }
 
     }
-    console.timeEnd('evaluate');
     return {
       id: this.id,
       name: this.name || '',

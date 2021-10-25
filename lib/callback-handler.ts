@@ -7,7 +7,7 @@ import { MatchedContext } from './add';
 import { app } from './app';
 export interface IButton {
   text: string;
-  clicked: (from: User) => Promise<boolean>;
+  clicked: (from: User) => Promise<boolean|void>;
 
 }
 export class CallbackHandler {
@@ -40,7 +40,7 @@ export class CallbackHandler {
     this.callbackEmitter.once(keyboardUuid, async (index: number, index2: number, ctx: Context<Update> & { match: RegExpMatchArray }) => {
       console.log('asd', index, index2);
       const clickHandler = button2d[index][index2].clicked;
-      if (ctx.callbackQuery && ctx.callbackQuery.message && await clickHandler(ctx.callbackQuery.from)) {
+      if (ctx.callbackQuery && ctx.callbackQuery.message && await clickHandler(ctx.callbackQuery.from) === true) {
         console.log('Deleted callback');
         try {
           ctx.telegram.deleteMessage(ctx.callbackQuery.message.chat.id, ctx.callbackQuery.message.message_id);
