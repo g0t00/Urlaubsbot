@@ -1,4 +1,4 @@
-import { Context, Telegraf } from 'telegraf';
+import { Context, Telegraf, Telegram } from 'telegraf';
 import { Markup, Middleware } from 'telegraf';
 import { connect } from 'mongoose';
 import { addMiddleware } from './add';
@@ -631,7 +631,7 @@ class App {
   async runReadyCheck(groupObj: DocumentType<Group>) {
     groupObj.state = 'readyCheck';
     await groupObj.save();
-    let message: PromiseType<ReturnType<typeof this.bot.telegram.sendMessage>>;
+    let message: PromiseType<ReturnType<Telegram['sendMessage']>>;
     while (groupObj.members.reduce((prev, member) => prev && member.readyCheckConfirmed, true) === false) {
       await new Promise<void>(async resolve => {
         const keyboard = callbackHandler.getKeyboard(
@@ -671,7 +671,7 @@ class App {
     const evaluation = await groupObj.evaluate();
     groupObj.transactions = evaluation.transactions;
     await groupObj.save();
-    let message: PromiseType<ReturnType<typeof this.bot.telegram.sendMessage>>;
+    let message: PromiseType<ReturnType<Telegram['sendMessage']>>;
     function transactionFormatter(transaction: ITransaction) {
       return `${transaction.from} -> ${transaction.to} ${Math.round(transaction.amount * 100) / 100} ${transaction.confirmed ? `✅` : `🔳`}`;
     }
