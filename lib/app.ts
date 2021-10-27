@@ -609,11 +609,24 @@ class App {
         return next();
       }
       const groups = await GroupModel.find({ 'members.id': chat.id });
-      ctx.reply("Listing all groups where you and another person is member...");
+      ctx.reply("Listing all groups where you and another person is member and state is not done...");
       for (const group of groups) {
         if (group.members.length > 1 && group.state !== 'done') {
           const table = await group.getSummaryTable();
-          ctx.replyWithHTML(`<code>Group '${group.name}'\n${table} </code>`);
+          const message = await ctx.replyWithHTML(`<code>Group '${group.name}' ${group.state}\n${table} </code>`, Markup.inlineKeyboard(callbackHandler.getKeyboard([[
+            {
+              text: 'Mark Done',
+              clicked: async() => {
+                group.state = 'done';
+                await group.save();
+
+                this.bot.telegram.sendMessage(group.telegramId, 'Group = done 🎆🎆🎆');
+                this.bot.telegram.editMessageReplyMarkup(message.chat.id, message.message_id, undefined, {
+                  inline_keyboard: [[]]
+                })
+              }
+            }
+          ]])));
         }
       }
     })
