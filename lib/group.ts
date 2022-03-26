@@ -1,28 +1,27 @@
 // import {Document, Schema, Model, model} from 'mongoose';
 import { prop, post, DocumentType, arrayProp, pre, getModelForClass } from '@typegoose/typegoose';
-import { IGroupData, ITransaction, IMember, GroupState } from './interfaces'
+import { IGroupData, ITransaction, IMember, GroupState, IPayEntry } from './interfaces'
 const AsciiTable = require('ascii-table');
 import { v1 as uuid } from 'uuid';
 import * as _ from 'lodash';
 import { Member } from './member';
 import { Entry } from './entry';
 import { app } from './app';
-import {web} from './web';
-import {roundToCent} from './util';
+import { web } from './web';
+import { roundToCent } from './util';
 import * as moment from 'moment-timezone';
 export interface IMemberWithSum extends Member {
   sum: number;
 }
 import { PaypalMappingModel } from './paypalMapping';
-import { group } from 'console';
 export class GroupBannedUser {
-  @prop({required: true})
+  @prop({ required: true })
   name: string;
-  @prop({required: true})
+  @prop({ required: true })
   id: number;
 }
-@pre<Group>('save', function(next) { // or @pre(this: Car, 'save', ...
-this.lastExport = new Date();
+@pre<Group>('save', function (next) { // or @pre(this: Car, 'save', ...
+  this.lastExport = new Date();
   next();
 })
 @post<Group>('save', function (group) {
@@ -43,11 +42,11 @@ export class Group {
     default: []
   })
   groupBannedUsers: GroupBannedUser[];
-  @prop({ default: 'initial'})
+  @prop({ default: 'initial' })
   public state: GroupState;
-  @prop({default: null})
+  @prop({ default: null })
   public transactions: ITransaction[] | null;
-  @prop({default: false})
+  @prop({ default: false })
   dayMode: boolean;
   @prop()
   sheetId?: string;
@@ -69,7 +68,7 @@ export class Group {
     let text = entry.description + ': ' + entry.amount + ' ';
     text += 'Members having to pay for this: ';
     if (entry.partialGroupMembers && entry.partialGroupMembers.length > 0) {
-       text += entry.partialGroupMembers.map(memberId => {
+      text += entry.partialGroupMembers.map(memberId => {
         const member = this.members.find(member => member.id === memberId);
         if (member) {
           return member.name;
@@ -94,22 +93,33 @@ export class Group {
       for (const entry of member.entries) {
         hasPayed += entry.amount;
       }
+      const hasToPayEntries: IPayEntry[] = [];
       if (this.dayMode === false) {
         for (const memberToPay of this.members) {
           for (const entry of memberToPay.entries) {
-            if (!entry.partialGroupMembers || entry.partialGroupMembers.length === 0) {
-              toPay += entry.amount / this.members.length;
+            let partialAmount;
+            if (!entry.partialGroupMembers || entry.partialGroupMembers.length === 0) {
+              partialAmount = entry.amount / this.members.length;
             } else if (entry.partialGroupMembers.indexOf(member.id) > -1) {
-              toPay += entry.amount / entry.partialGroupMembers.length;
+              partialAmount = entry.amount / entry.partialGroupMembers.length;
             }
+            if (partialAmount !== undefined) {
+              toPay += partialAmount;
+              hasToPayEntries.push({
+                description: entry.description,
+                amount: entry.amount,
+                partialAmount: partialAmount
+              });
+            }
+
           }
         }
-
-
       } else {
         for (const memberToPay of this.members) {
           for (const entry of memberToPay.entries) {
-            if (!entry.partialGroupMembers || entry.partialGroupMembers.length === 0) {
+            let partialAmount;
+
+            if (!entry.partialGroupMembers || entry.partialGroupMembers.length === 0) {
               // Only Member which dates fit has to Pay
               const days = typeof entry.endTime === 'undefined' ? 1 : Math.max(1, Math.ceil(moment(entry.endTime).diff(moment(entry.time), 'days', true)));
               const perDay = entry.amount / days;
@@ -117,12 +127,20 @@ export class Group {
                 const currentDay = moment(entry.time).add(i, 'days');
                 const membersWhoHaveToPay = this.members.filter(memberFilter => memberFilter.allTime || (memberFilter.start <= currentDay.toDate() && moment(memberFilter.end).endOf('day').toDate() > currentDay.toDate()));
                 if (membersWhoHaveToPay.findIndex(memberFind => memberFind.id === member.id) > -1) {
-                  toPay += perDay / membersWhoHaveToPay.length;
+                  partialAmount = perDay / membersWhoHaveToPay.length;
                 }
               }
               // toPay += entry.amount / this.members.filter(memberFilter => memberFilter.allTime || (memberFilter.start < entry.time && memberFilter.end > entry.time)).length;
             } else if (entry.partialGroupMembers.indexOf(member.id) > -1) {
-              toPay += entry.amount / entry.partialGroupMembers.length;
+              partialAmount = entry.amount / entry.partialGroupMembers.length;
+            }
+            if (partialAmount !== undefined) {
+              toPay += partialAmount;
+              hasToPayEntries.push({
+                description: entry.description,
+                amount: entry.amount,
+                partialAmount: partialAmount
+              });
             }
           }
         }
@@ -135,9 +153,10 @@ export class Group {
           time: entry.time,
           endTime: entry.endTime,
           uuid: entry.uuid,
-          partialGroupMembers}
+          partialGroupMembers
+        }
           ;
-        });
+      });
 
 
       return {
@@ -149,7 +168,8 @@ export class Group {
         readyCheckConfirmed: member.readyCheckConfirmed,
         hasPayed,
         toPay,
-        entries: entries
+        entries: entries,
+        hasToPayEntries
       };
     });
     let transactions: ITransaction[] = [];
@@ -169,7 +189,7 @@ export class Group {
       interface IMemberWithOpen extends IMember {
         open: number;
       }
-      const membersCopy: IMemberWithOpen[]  = JSON.parse(JSON.stringify(members));
+      const membersCopy: IMemberWithOpen[] = JSON.parse(JSON.stringify(members));
       for (const member of membersCopy) {
         member.open = member.hasPayed - member.toPay;
       }
@@ -179,7 +199,7 @@ export class Group {
         const from = membersCopy[0];
         const to = membersCopy[membersCopy.length - 1];
         const amount = Math.min(Math.abs(from.open), to.open);
-        const mapping = await PaypalMappingModel.findOne({telegramId: to.id});
+        const mapping = await PaypalMappingModel.findOne({ telegramId: to.id });
         const transaction: ITransaction = {
           from: from.name,
           to: to.name,
@@ -236,12 +256,12 @@ export class Group {
     return false;
   }
 
-  async findEntryByUuid(this: DocumentType<Group>, uuid: string): Promise<Entry|undefined> {
+  async findEntryByUuid(this: DocumentType<Group>, uuid: string): Promise<Entry | undefined> {
     for (const member of this.members) {
       const entry = member.entries.find(entry => entry.uuid === uuid);
-        if (entry) {
-          return entry;
-        }
+      if (entry) {
+        return entry;
+      }
     }
     return undefined;
   }
@@ -268,7 +288,7 @@ export class Group {
     await this.save();
     try {
       await app.bot.telegram.sendMessage(this.telegramId, `Member ${name} added (id: ${id})`);
-    } catch(e) {
+    } catch (e) {
       console.error('WTF', e);
     }
     return true;
@@ -338,7 +358,7 @@ export class Group {
     return newEntry;
   }
 
-   async getSummaryTable(this: DocumentType<Group>) {
+  async getSummaryTable(this: DocumentType<Group>) {
     const evaluation = await this.evaluate();
     const table = new AsciiTable();
     table.addRow('name', 'has payed', 'has to pay', 'still open')
@@ -349,7 +369,7 @@ export class Group {
     return table.toString();
   }
 
-   async getMemberinfo(this: DocumentType<Group>, memberId: number) {
+  async getMemberinfo(this: DocumentType<Group>, memberId: number) {
     const evaluation = await this.evaluate();
 
     const member = evaluation.members.find(member => member.id === memberId);

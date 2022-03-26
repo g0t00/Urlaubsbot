@@ -17,6 +17,7 @@ export interface IMember {
   allTime: boolean;
   entries: IEntry[];
   readyCheckConfirmed: boolean;
+  hasToPayEntries: IPayEntry[];
 }
 export interface IEntry {
   description: string;
@@ -24,6 +25,11 @@ export interface IEntry {
   partialGroupMembers?: number[];
   time?: Date;
   uuid: string,
+}
+export interface IPayEntry {
+  description: string;
+  amount: number;
+  partialAmount: number;
 }
 export interface IGroupMemberChange {
   start?: Date;

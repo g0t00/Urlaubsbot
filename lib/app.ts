@@ -324,6 +324,21 @@ class App {
       }
       ctx.replyWithHTML(`<a href="${this.url}/client/index.html#${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
     });
+    this.addCommand('moneysplit', 'get amount due per persons per entry', async ctx => {
+      const { chat } = ctx;
+      if (!chat || !chat.id) {
+        return;
+      }
+      const groupObj = await GroupModel.findOne({ telegramId: chat.id });
+
+      if (!groupObj) {
+        return ctx.reply('Not in group / none initialized group');
+      }
+      const groupData = await groupObj.evaluate();
+      for (const member of groupData.members) {
+        ctx.reply(`${member.name}:\n${member.hasToPayEntries.map(entry => `${entry.description} ${entry.partialAmount} of ${entry.amount} (${Math.round(100 * entry.partialAmount / entry.amount)}%)\n`)}`)
+      }
+    })
 
     this.addCommand('summary', 'get summary.', async (ctx) => {
       const { chat, reply, replyWithHTML, replyWithPhoto } = ctx;
@@ -616,7 +631,7 @@ class App {
           const message = await ctx.replyWithHTML(`<code>Group '${group.name}' ${group.state}\n${table} </code>`, Markup.inlineKeyboard(callbackHandler.getKeyboard([[
             {
               text: 'Mark Done',
-              clicked: async() => {
+              clicked: async () => {
                 group.state = 'done';
                 await group.save();
 
@@ -709,9 +724,9 @@ class App {
                 Markup.inlineKeyboard(keyboard)
               );
             }
-          } catch(e) {
+          } catch (e) {
             message = await this.bot.telegram.sendMessage(groupObj.telegramId, messageText,
-              Markup .inlineKeyboard(keyboard)
+              Markup.inlineKeyboard(keyboard)
             );
           }
         } else {
