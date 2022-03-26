@@ -336,7 +336,7 @@ class App {
       }
       const groupData = await groupObj.evaluate();
       for (const member of groupData.members) {
-        ctx.reply(`${member.name}:\n${member.hasToPayEntries.map(entry => `${entry.description} ${entry.partialAmount} of ${entry.amount} (${Math.round(100 * entry.partialAmount / entry.amount)}%)\n`)}`)
+        ctx.reply(`${member.name}:\n${member.hasToPayEntries.map(entry => `${entry.description} ${entry.partialAmount} of ${entry.amount} (${Math.round(100 * entry.partialAmount / entry.amount)}%)`).join('\n')}`)
       }
     })
 
