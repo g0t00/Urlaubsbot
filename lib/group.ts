@@ -123,11 +123,12 @@ export class Group {
               // Only Member which dates fit has to Pay
               const days = typeof entry.endTime === 'undefined' ? 1 : Math.max(1, Math.ceil(moment(entry.endTime).diff(moment(entry.time), 'days', true)));
               const perDay = entry.amount / days;
+              partialAmount = 0;
               for (let i = 0; i < days; i++) {
                 const currentDay = moment(entry.time).add(i, 'days');
                 const membersWhoHaveToPay = this.members.filter(memberFilter => memberFilter.allTime || (memberFilter.start <= currentDay.toDate() && moment(memberFilter.end).endOf('day').toDate() > currentDay.toDate()));
                 if (membersWhoHaveToPay.findIndex(memberFind => memberFind.id === member.id) > -1) {
-                  partialAmount = perDay / membersWhoHaveToPay.length;
+                  partialAmount += perDay / membersWhoHaveToPay.length;
                 }
               }
               // toPay += entry.amount / this.members.filter(memberFilter => memberFilter.allTime || (memberFilter.start < entry.time && memberFilter.end > entry.time)).length;
