@@ -15,6 +15,7 @@ import { PaypalMappingModel } from './paypalMapping';
 import { runInThisContext } from 'vm';
 import { ITransaction } from './interfaces';
 import { tr } from 'date-fns/locale';
+import { roundToCent } from './util';
 // import { Sheet } from'./sheet';
 if (typeof process.env.TOKEN !== 'string') {
   throw new Error('Token not set!');
@@ -336,7 +337,7 @@ class App {
       }
       const groupData = await groupObj.evaluate();
       for (const member of groupData.members) {
-        ctx.reply(`${member.name}:\n${member.hasToPayEntries.map(entry => `${entry.description} ${entry.partialAmount} of ${entry.amount} (${Math.round(100 * entry.partialAmount / entry.amount)}%)`).join('\n')}`)
+        ctx.reply(`${member.name}:\n${member.hasToPayEntries.map(entry => `${entry.description} ${roundToCent(entry.partialAmount)} of ${entry.amount} (${Math.round(100 * entry.partialAmount / entry.amount)}%)`).join('\n')}`)
       }
     })
 
