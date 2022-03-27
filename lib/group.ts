@@ -135,7 +135,7 @@ export class Group {
             } else if (entry.partialGroupMembers.indexOf(member.id) > -1) {
               partialAmount = entry.amount / entry.partialGroupMembers.length;
             }
-            if (partialAmount !== undefined) {
+            if (partialAmount !== undefined && partialAmount > 0) {
               toPay += partialAmount;
               hasToPayEntries.push({
                 description: entry.description,
