@@ -1,6 +1,7 @@
 import { Card, CardContent, Typography, Table, TableHead, TableRow, TableCell, TableBody, Grid } from "@material-ui/core";
 import React from "react";
 import { IGroupData } from "../interfaces";
+import { roundToCent } from "../util";
 
 export function MoneySplit({ groupData }: { groupData: IGroupData }) {
 
@@ -35,7 +36,7 @@ export function MoneySplit({ groupData }: { groupData: IGroupData }) {
                     {entry.description}
                   </TableCell>
                   <TableCell>
-                    {entry.partialAmount}
+                    {roundToCent(entry.partialAmount)}
                   </TableCell>
                   <TableCell>
                     {entry.amount}

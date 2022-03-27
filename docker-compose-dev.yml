@@ -14,7 +14,7 @@ services:
     volumes:
       - ./:/home/node/app
     working_dir: /home/node/app
-    command: nodemon --delay 80ms --inspect=0.0.0.0:8228 -w "dist/*.js" --verbose -- --enable-source-maps dist/app.js
+    command: /usr/local/bin/nodemon --delay 80ms --inspect=0.0.0.0:8228 -w "dist/*.js" --verbose -- --enable-source-maps dist/app.js
   build:
     build: ./dev-env
     volumes:
