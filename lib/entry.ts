@@ -1,19 +1,17 @@
-import { prop, arrayProp } from '@typegoose/typegoose';
+import { prop } from '@typegoose/typegoose';
 export class Entry {
-  @prop({required: true})
+  @prop({ required: true })
   uuid: string;
-  @prop({required: true})
+  @prop({ required: true })
   description: string;
-  @prop({required: true})
+  @prop({ required: true })
   amount: number;
-  @prop({required: true})
+  @prop({ required: true })
   time: Date;
   @prop()
   endTime?: Date;
-  @arrayProp({
-    items: Number,
-    default: [],
-    required: true
+  @prop({
+    type: Number,
   })
   partialGroupMembers: number[];
 

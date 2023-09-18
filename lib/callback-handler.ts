@@ -24,7 +24,7 @@ export class CallbackHandler {
     }
   }
   async handleMessage(ctx: Context<Update>) {
-    // console.log(ctx.update);
+    console.log(ctx);
     if (ctx.message && (ctx.message as any).reply_to_message) {
       this.responseEmitter.emit('response', (ctx.message as any).reply_to_message.chat.id, (ctx.message as any).reply_to_message.message_id, (ctx.message as any).text, ctx.message.message_id);
     }

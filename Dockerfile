@@ -10,7 +10,7 @@ COPY --chown=node:node lib/interfaces.ts /home/node/app/src/
 RUN npx webpack
 
 
-FROM node:12.18.3-stretch
+FROM node:20.6.1-bullseye
 USER node
 COPY --chown=node:node package.json /home/node/app/package.json
 COPY --chown=node:node package-lock.json /home/node/app/package-lock.json

@@ -1,19 +1,19 @@
 // import {Document, Schema, Model, model} from 'mongoose';
-import { prop, post, DocumentType, arrayProp, pre, getModelForClass } from '@typegoose/typegoose';
-import { IGroupData, ITransaction, IMember, GroupState, IPayEntry } from './interfaces'
-const AsciiTable = require('ascii-table');
-import { v1 as uuid } from 'uuid';
+import { DocumentType, getModelForClass, post, pre, prop } from '@typegoose/typegoose';
 import * as _ from 'lodash';
-import { Member } from './member';
-import { Entry } from './entry';
-import { app } from './app';
-import { web } from './web';
-import { roundToCent } from './util';
 import * as moment from 'moment-timezone';
+import { v1 as uuid } from 'uuid';
+import { app } from './app';
+import { Entry } from './entry';
+import { GroupState, IGroupData, IMember, IPayEntry, ITransaction } from './interfaces';
+import { Member } from './member';
+import { PaypalMappingModel } from './paypalMapping';
+import { roundToCent } from './util';
+import { web } from './web';
+const AsciiTable = require('ascii-table');
 export interface IMemberWithSum extends Member {
   sum: number;
 }
-import { PaypalMappingModel } from './paypalMapping';
 export class GroupBannedUser {
   @prop({ required: true })
   name: string;
@@ -32,19 +32,19 @@ export class Group {
   telegramId: number;
   @prop()
   name?: string;
-  @arrayProp({
-    items: Member,
+  @prop({
+    type: Member,
     default: []
   })
   members: Member[];
-  @arrayProp({
-    items: GroupBannedUser,
+  @prop({
+    type: GroupBannedUser,
     default: []
   })
   groupBannedUsers: GroupBannedUser[];
   @prop({ default: 'initial' })
   public state: GroupState;
-  @prop({ default: null })
+  @prop({ type: ITransaction, default: null })
   public transactions: ITransaction[] | null;
   @prop({ default: false })
   dayMode: boolean;
@@ -201,13 +201,13 @@ export class Group {
         const to = membersCopy[membersCopy.length - 1];
         const amount = Math.min(Math.abs(from.open), to.open);
         const mapping = await PaypalMappingModel.findOne({ telegramId: to.id });
-        const transaction: ITransaction = {
-          from: from.name,
-          to: to.name,
-          toId: to.id,
-          confirmed: false,
-          amount
-        };
+        const transaction = new ITransaction(
+          from.name,
+          to.name,
+          to.id,
+          amount,
+          false,
+        );
         if (mapping) {
           transaction.paypalLink = mapping.link + '/' + roundToCent(amount);
         }
@@ -279,7 +279,7 @@ export class Group {
       }
     });
     if (double) {
-      app.bot.telegram.sendMessage(this.telegramId, `Member aleady in group!`);
+      app.bot.telegram.sendMessage(this.telegramId, `Member already in group!`);
       return false;
     }
     const member = new Member();
@@ -370,7 +370,7 @@ export class Group {
     return table.toString();
   }
 
-  async getMemberinfo(this: DocumentType<Group>, memberId: number) {
+  async getMemberInfo(this: DocumentType<Group>, memberId: number) {
     const evaluation = await this.evaluate();
 
     const member = evaluation.members.find(member => member.id === memberId);

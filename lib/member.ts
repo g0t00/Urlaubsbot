@@ -1,21 +1,20 @@
-import { prop, arrayProp } from '@typegoose/typegoose';
-import * as moment from 'moment-timezone';
+import { prop } from '@typegoose/typegoose';
+import { Entry } from './entry';
 ;
-import {Entry} from './entry';
 export class Member {
-  @arrayProp({items: Entry, default: []})
+  @prop({ type: Entry, default: [] })
   entries: Entry[] = [];
-  @prop({required: true})
+  @prop({ required: true })
   name: string;
-  @prop({required: true})
+  @prop({ required: true })
   id: number;
-  @prop({default: new Date()})
+  @prop({ default: new Date() })
   start: Date;
 
-  @prop({default: new Date()})
+  @prop({ default: new Date() })
   end: Date;
-  @prop({default: true})
+  @prop({ default: true })
   allTime: boolean;
-  @prop({default: false})
+  @prop({ default: false })
   readyCheckConfirmed: boolean;
 };
