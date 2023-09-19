@@ -144,7 +144,7 @@ async function add(ctx: MatchedContext<Context<Update>, "text">, useForeign: boo
       console.log('caught delete message');
       // do not care
     }
-    replyObj = await app.bot.telegram.sendMessage(replyObj.chat.id, `Please enter amount. @${message.from.username}`,
+    replyObj = await ctx.reply(`Please enter amount. @${message.from.username}`,
       {
         reply_markup: { force_reply: true, selective: true }
       });
