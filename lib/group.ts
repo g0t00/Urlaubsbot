@@ -2,7 +2,7 @@
 import { DocumentType, getModelForClass, post, pre, prop } from '@typegoose/typegoose';
 import * as _ from 'lodash';
 import * as moment from 'moment-timezone';
-import { v1 as uuid } from 'uuid';
+import { v4 as uuid } from 'uuid';
 import { app } from './app';
 import { Entry } from './entry';
 import { GroupState, IGroupData, IMember, IPayEntry, ITransaction } from './interfaces';

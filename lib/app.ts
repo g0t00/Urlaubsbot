@@ -58,25 +58,10 @@ class App {
       res.send('Hello World!');
     });
 
-    // if (webHook) {
-    //   (async () => {
-    //     this.express.use(await this.bot.createWebhook('/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4'));
-    //     // this.bot.telegram.setWebhook(this.url + '/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
-    //     this.bot.telegram.webhookReply = false
-    //     this.bot.launch({
-    //       webhook: {
-    //         hookPath: this.url + '/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4'
-    //       }
-    //     });
-    //     this.bot.telegram.setWebhook('');
 
-    //   })()
-
-    // } else {
     this.bot.launch();
     console.log('starting Polling');
     this.bot.telegram.setWebhook('');
-    // }
     this.bot.use((addMiddleware as unknown) as Middleware<any>);
     this.express.listen(port, () => {
       console.log('express listening on port', port);

@@ -135,7 +135,6 @@ async function add(ctx: MatchedContext<Context<Update>, "text">, useForeign: boo
     let replyObj = await ctx.reply(`Please enter description. @${message.from.username}`, {
       reply_markup: { force_reply: true, selective: true }
     });
-    console.log('hi chat');
 
     description = await callbackHandler.getReply(chat.id, replyObj.message_id);
     console.log('before try message');
