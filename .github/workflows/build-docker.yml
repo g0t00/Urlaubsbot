@@ -22,10 +22,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set Image Name
+        run: echo "IMAGE_NAME=ghcr.io/g0t00/urlaubsbot:${GITHUB_HEAD_REF}" >> $GITHUB_ENV
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: ghcr.io/g0t00/urlaubsbot:${{env.GITHUB_HEAD_REF}}
+          tags: ghcr.io/g0t00/urlaubsbot:${{ env.IMAGE_NAME }}
           cache-from: type=registry,ref=user/app:latest
           cache-to: type=inline
