@@ -1,4 +1,4 @@
-FROM node:12.18.3-stretch AS client-builder
+FROM node:20.6.1-bullseye AS client-builder
 USER node
 COPY --chown=node:node client/package.json /home/node/app/package.json
 COPY --chown=node:node client/package-lock.json /home/node/app/package-lock.json
@@ -7,7 +7,7 @@ RUN npm ci
 COPY --chown=node:node client/. /home/node/app/
 COPY --chown=node:node lib/interfaces.ts /home/node/app/src/
 
-RUN npx webpack
+RUN npm run build
 
 
 FROM node:20.6.1-bullseye

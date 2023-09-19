@@ -15,9 +15,7 @@
   "license": "ISC",
   "dependencies": {
     "@typegoose/typegoose": "^11.5.0",
-    "array.prototype.flat": "^1.2.3",
     "ascii-table": "0.0.9",
-    "bluebird": "^3.7.2",
     "circular-json": "^0.5.5",
     "concurrently": "^6.1.0",
     "cron": "^1.8.2",
@@ -46,6 +44,7 @@
     "@types/node": "^20.6.2",
     "@types/uuid": "^3.4.9",
     "source-map-loader": "^0.2.4",
+    "ts-node": "^10.9.1",
     "typescript": "^5.2.2",
     "utility-types": "^3.10.0"
   }

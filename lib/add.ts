@@ -138,7 +138,6 @@ async function add(ctx: MatchedContext<Context<Update>, "text">, useForeign: boo
     console.log('hi chat');
 
     description = await callbackHandler.getReply(chat.id, replyObj.message_id);
-    await app.bot.telegram.sendMessage(replyObj.chat.id, 'hello world');
     console.log('before try message');
     try {
       await app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
@@ -146,7 +145,6 @@ async function add(ctx: MatchedContext<Context<Update>, "text">, useForeign: boo
       console.log('caught delete message');
       // do not care
     }
-    await app.bot.telegram.sendMessage(replyObj.chat.id, 'hello world 2');
     replyObj = await app.bot.telegram.sendMessage(replyObj.chat.id, `Please enter amount. @${message.from.username}`,
       {
         reply_markup: { force_reply: true, selective: true }

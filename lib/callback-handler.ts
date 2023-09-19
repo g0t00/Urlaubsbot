@@ -55,7 +55,11 @@ export class CallbackHandler {
     return new Promise(resolve => {
       this.responseEmitter.on('response', async (_chatId: number, _message_id: number, text: string, responseMessageId: number) => {
         if (chatId === _chatId && message_id === _message_id) {
-          app.bot.telegram.deleteMessage(chatId, responseMessageId);
+          try {
+            app.bot.telegram.callApi('deleteMessage', {chat_id: chatId, message_id: responseMessageId}).catch(err => console.log(err));
+          } catch(err) {
+            console.error('could not delete')
+          }
           resolve(text);
         }
       })
