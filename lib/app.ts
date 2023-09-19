@@ -92,8 +92,6 @@ class App {
     //   });
     // });
     this.bot.on('message', async (ctx, next) => {
-      // reply('message');
-      // console.log(ctx);
       const { chat, message } = ctx;
       if (chat?.type !== 'group') {
         return next();
