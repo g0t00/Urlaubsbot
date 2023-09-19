@@ -26,6 +26,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: ghcr.io/g0t00/urlaubsbot:${GITHUB_HEAD_REF}}
+          tags: ghcr.io/g0t00/urlaubsbot:${{env.GITHUB_HEAD_REF}}
           cache-from: type=registry,ref=user/app:latest
           cache-to: type=inline
