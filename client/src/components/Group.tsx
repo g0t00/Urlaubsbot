@@ -130,7 +130,7 @@ export default function Group() {
         <FormControlLabel
           control={
             <Checkbox
-              checked={groupData?.dayMode}
+              checked={groupData?.dayMode ?? false}
               onChange={(event) => changeDayMode(event)}
               value="DayMode"
               color="primary"
@@ -148,7 +148,7 @@ export default function Group() {
       </AppBar>
       <TabPanel value={tab} index={0}>
         <Grid container spacing={10}>
-          {(groupData?.members ?? []).map((member, i) => <Member member={member} i={i} groupId={groupId} groupData={groupData} />)}
+          {(groupData?.members ?? []).map((member, i) => <Member key={member.id} member={member} i={i} groupId={groupId} groupData={groupData} />)}
         </Grid>
       </TabPanel>
       <TabPanel value={tab} index={1}>
@@ -189,8 +189,8 @@ export default function Group() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {(groupData?.transactions ?? []).map(transaction =>
-                <TableRow>
+              {(groupData?.transactions ?? []).map((transaction, index) =>
+                <TableRow key={index}>
                   <TableCell>
                     {transaction.from}
                   </TableCell>

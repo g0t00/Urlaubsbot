@@ -53,7 +53,6 @@ interface IErrors {
 }
 const EditCell = ({ errors, addedErrors, ...props }: any) => {
   const { children } = props;
-  console.log(props, 'p');
   return (
     <TableEditColumn.Cell {...props}>
       {React.Children.map(children, child => (
@@ -230,7 +229,6 @@ export function EntryTable(props: IEntryTableProps) {
     console.log(state.deleteDialogEntry);
     setState({ ...state, deleteDialogOpen: false });
   }
-  console.log('asd1')
   return <>
     <Paper>
       <Grid
