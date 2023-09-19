@@ -5,7 +5,8 @@
   "main": "webpack.config.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build-watch": "webpack -w"
+    "build-watch": "node esbuild.mjs -w",
+    "build": "node esbuild.mjs"
   },
   "author": "",
   "license": "ISC",
@@ -23,23 +24,15 @@
     "@types/react-dom": "^16.9.8",
     "@types/react-plotly.js": "^2.2.4",
     "date-fns": "^2.24.0",
-    "plotly.js": "^1.54.7",
+    "plotly.js": "^2.26.0",
     "plotly.js-dist-min": "^2.5.1",
     "react": "^16.14.0",
     "react-dom": "^16.13.1",
     "react-plotly.js": "^2.4.0",
-    "typeface-roboto": "0.0.75",
-    "typescript": "^3.9.7"
+    "typeface-roboto": "0.0.75"
   },
   "devDependencies": {
-    "@types/webpack-env": "^1.15.2",
-    "awesome-typescript-loader": "^5.2.1",
-    "css-loader": "^4.2.1",
-    "file-loader": "^6.0.0",
-    "source-map-loader": "^1.0.1",
-    "style-loader": "^1.2.1",
-    "webpack": "^4.44.1",
-    "webpack-bundle-analyzer": "^3.9.0",
-    "webpack-cli": "^3.3.12"
+    "esbuild": "^0.19.3",
+    "typescript": "^5.2.2"
   }
 }

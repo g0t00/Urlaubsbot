@@ -1,21 +1,18 @@
-import { Context, Telegraf, Telegram } from 'telegraf';
-import { Markup, Middleware } from 'telegraf';
-import { connect } from 'mongoose';
-import { addMiddleware } from './add';
+import { DocumentType } from '@typegoose/typegoose';
 import * as express from 'express';
-import { callbackHandler, IButton } from './callback-handler';
+import { connect } from 'mongoose';
+import { Markup, Middleware, Telegraf, Telegram } from 'telegraf';
 import { PromiseType } from 'utility-types';
-connect('mongodb://mongo/urlaubsbot', { useNewUrlParser: true });
+import { addMiddleware } from './add';
+import { IButton, callbackHandler } from './callback-handler';
+connect('mongodb://mongo/urlaubsbot');
 const AsciiTable = require('ascii-table');
-import { prop, post, DocumentType, arrayProp, pre, getModelForClass } from '@typegoose/typegoose';
 
-import { web } from './web';
 import { Group, GroupModel } from './group';
-import { PaypalMappingModel } from './paypalMapping';
-import { runInThisContext } from 'vm';
 import { ITransaction } from './interfaces';
-import { tr } from 'date-fns/locale';
+import { PaypalMappingModel } from './paypalMapping';
 import { roundToCent } from './util';
+import { web } from './web';
 // import { Sheet } from'./sheet';
 if (typeof process.env.TOKEN !== 'string') {
   throw new Error('Token not set!');
@@ -24,7 +21,7 @@ class App {
   bot = new Telegraf(process.env.TOKEN as string);
   commands: { command: string, description: string }[] = [
     { command: 'add', description: 'Adds amount. Please only input one number after, because it will be used as amount.' },
-    { command: 'addforeign', description: 'Adds amount in foreign currency. Will be divided by currency value. Orginal amount will be discarded.' },
+    { command: 'addforeign', description: 'Adds amount in foreign currency. Will be divided by currency value. Original amount will be discarded.' },
     { command: 'addother', description: 'Adds amount to different member.' },
     { command: 'addotherforeign', description: 'Adds amount to different member in foreign currency.' },
     { command: 'addpartial', description: 'Add amount only to certain group members.' },
@@ -50,6 +47,7 @@ class App {
 
 
     });
+    console.log('STRATING')
     this.express = express();
     this.express.set('view engine', 'ejs');
     this.express.set('views', '../views');
@@ -60,22 +58,10 @@ class App {
       res.send('Hello World!');
     });
 
-    if (webHook) {
-      this.express.use(this.bot.webhookCallback('/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4'));
-      this.bot.telegram.setWebhook(this.url + '/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4');
-      this.bot.telegram.webhookReply = false
-      this.bot.launch({
-        webhook: {
-          hookPath: this.url + '/AAHzTPVsfQLlisWSkWl6jH795cWMX2RsyS4'
-        }
-      });
-      this.bot.telegram.setWebhook('');
 
-    } else {
-      this.bot.launch();
-      console.log('starting Polling');
-      this.bot.telegram.setWebhook('');
-    }
+    this.bot.launch();
+    console.log('starting Polling');
+    this.bot.telegram.setWebhook('');
     this.bot.use((addMiddleware as unknown) as Middleware<any>);
     this.express.listen(port, () => {
       console.log('express listening on port', port);
@@ -91,8 +77,6 @@ class App {
     //   });
     // });
     this.bot.on('message', async (ctx, next) => {
-      // reply('mesesage');
-      // console.log(ctx);
       const { chat, message } = ctx;
       if (chat?.type !== 'group') {
         return next();
@@ -150,7 +134,7 @@ class App {
         groupObj.name = 'title' in chat ? chat.title : '';
         groupObj.telegramId = chat.id;
         await groupObj.save();
-        ctx.reply('Neue Gruppe angelegt: ' + groupObj.name);
+        ctx.reply('New group created: ' + groupObj.name);
       }
       for (const member of ((message as any).new_chat_members ?? [])) {
         if (member.is_bot === false) {
@@ -443,7 +427,7 @@ class App {
         return;
       }
       const group = groupObj;
-      ctx.replyWithHTML(await group.getMemberinfo(message.from.id));
+      ctx.replyWithHTML(await group.getMemberInfo(message.from.id));
     });
     this.addCommand('remove', 'Remove Entry', async (ctx) => {
       const { reply, message, chat } = ctx;

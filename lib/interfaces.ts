@@ -36,11 +36,16 @@ export interface IGroupMemberChange {
   end?: Date;
   allTime?: boolean;
 }
-export interface ITransaction {
-  from: string,
-  to: string;
-  toId: number;
-  amount: number;
-  paypalLink?: string;
-  confirmed: boolean;
+export class ITransaction {
+  constructor(
+    public from: string,
+    public to: string,
+    public toId: number,
+    public amount: number,
+    public confirmed: boolean,
+    public paypalLink?: string,
+
+  ) {
+
+  }
 }

@@ -14,12 +14,7 @@ services:
     volumes:
       - ./:/home/node/app
     working_dir: /home/node/app
-    command: /usr/local/bin/nodemon --delay 80ms --inspect=0.0.0.0:8228 -w "dist/*.js" --verbose -- --enable-source-maps dist/app.js
-  build:
-    build: ./dev-env
-    volumes:
-      - ./:/home/node/app
-    command: bash -c 'npm ci && npm run build-watch'
+    command: /usr/local/bin/nodemon --delay 80ms  -w "lib/*.ts" --verbose -- lib/app.ts
   build-client:
     build: ./dev-env
     volumes:
