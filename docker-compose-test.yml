@@ -10,8 +10,7 @@ services:
     - mongo
     environment:
       - PORT=3000
-      - TOKEN=***REMOVED***
-      # - TOKEN=***REMOVED***
+      - TOKEN=${DEV_TOKEN}
       - HOST=http://127.0.0.1:3000
       - NODE_ENV=production
     # networks:

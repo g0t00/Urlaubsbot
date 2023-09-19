@@ -5,3 +5,4 @@ dist
 data
 dump
 backup
+.env

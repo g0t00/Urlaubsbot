@@ -9,8 +9,7 @@ services:
     environment:
       - PORT=3000
 
-        #- TOKEN=***REMOVED***
-      - TOKEN=***REMOVED***
+      - TOKEN=${PROD_TOKEN}
       - HOST=https://urlaubsbot.niklas-schelten.de
       - NODE_ENV=production
     networks:
