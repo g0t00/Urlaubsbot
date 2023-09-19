@@ -29,5 +29,5 @@ jobs:
         with:
           push: true
           tags: ${{ env.IMAGE_NAME }}
-          cache-from: type=registry,ref=user/app:latest
-          cache-to: type=inline
+          cache-from: type=registry,ref=ghcr.io/g0t00/urlaubsbot:buildcache
+          cache-to: type=registry,ref=ghcr.io/g0t00/urlaubsbot:buildcache,mode=max
