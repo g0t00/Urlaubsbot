@@ -28,6 +28,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: ghcr.io/g0t00/urlaubsbot:${{ env.IMAGE_NAME }}
+          tags: ${{ env.IMAGE_NAME }}
           cache-from: type=registry,ref=user/app:latest
           cache-to: type=inline
