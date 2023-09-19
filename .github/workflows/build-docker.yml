@@ -23,7 +23,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set Image Name
-        run: echo "IMAGE_NAME=ghcr.io/g0t00/urlaubsbot:${GITHUB_HEAD_REF}" >> $GITHUB_ENV
+        run: echo "IMAGE_NAME=ghcr.io/g0t00/urlaubsbot:${GITHUB_REF_NAME}" >> $GITHUB_ENV
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
