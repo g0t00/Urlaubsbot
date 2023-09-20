@@ -275,7 +275,7 @@ export class Web {
       if (member.allTime) {
         message = `Changed ${member.name} mode to allTime`;
       } else {
-        message = `Changed ${member.name} mode to partial Time start: ${member.start.toLocaleString()} end: ${member.end.toLocaleString()}`;
+        message = `Changed ${member.name} mode to partial Time start: ${member.start?.toLocaleString()} end: ${member.end?.toLocaleString()}`;
 
       }
       await app.bot.telegram.sendMessage(groupObj.telegramId, message, { parse_mode: 'HTML' } as any);
