@@ -1,5 +1,7 @@
 import * as React from "react";
 import { IGroupData, IMember, IEntry, IGroupMemberChange } from '../interfaces'
+// I do not know why this needs to be so ugly...
+(window as any).global = window;
 const Plotly = require('plotly.js/lib/core');
 Plotly.register([
   require('plotly.js/lib/sankey'),
@@ -40,14 +42,14 @@ export default class PlotWrapper extends React.Component<IProps, IState> {
             color: "black",
             width: 0.5
           },
-         label,
-         color: colors.slice(0, this.props.groupData.members.length + 1).concat(this.props.groupData.members.map((member, index) => member.entries.map(entry => colors[index])).flat())
-            },
+          label,
+          color: colors.slice(0, this.props.groupData.members.length + 1).concat(this.props.groupData.members.map((member, index) => member.entries.map(entry => colors[index])).flat())
+        },
 
         link: {
           source: [...Array(this.props.groupData.members.length).keys()].concat(Array(entriesTargets.length).fill(this.props.groupData.members.length)),
           target: Array(this.props.groupData.members.length).fill((this.props.groupData.members.length)).concat(entriesTargets),
-          value:  this.props.groupData.members.map(member => member.hasPayed).concat(entries.map(entry => entry.amount))
+          value: this.props.groupData.members.map(member => member.hasPayed).concat(entries.map(entry => entry.amount))
         }
       },
     ] as any;

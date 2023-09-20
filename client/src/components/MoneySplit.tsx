@@ -30,8 +30,8 @@ export function MoneySplit({ groupData }: { groupData: IGroupData }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {(member.hasToPayEntries).map(entry =>
-                <TableRow>
+              {(member.hasToPayEntries).map((entry, index) =>
+                <TableRow key={index}>
                   <TableCell>
                     {entry.description}
                   </TableCell>
