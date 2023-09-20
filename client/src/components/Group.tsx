@@ -22,6 +22,7 @@ import { MoneySplit } from './MoneySplit';
 import { API_BASE } from '../api';
 import { AppBar, Tabs, Tab } from '@material-ui/core';
 import { Member } from './Member';
+import { startOfDay } from 'date-fns';
 export enum sortRows {
   description,
   amount,
@@ -48,9 +49,14 @@ function TabPanel(props: any) {
 export interface IEntryFlat extends IEntry {
   name: string;
 }
-export async function valueChanged(memberId: number, groupId: string, change: any) {
-  if (change.start) {
-    change.start = change.start.startOf('day');
+interface IChange {
+  start: Date;
+  end: Date;
+  allTime: boolean;
+}
+export async function valueChanged(memberId: number, groupId: string, change: Partial<IChange>) {
+  if (change.start && change.start) {
+    change.start = startOfDay(change.start);
   }
   await fetch(API_BASE + '/' + groupId + '/member/' + String(memberId), {
     method: 'POST',
