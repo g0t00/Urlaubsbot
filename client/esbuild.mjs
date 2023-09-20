@@ -3,12 +3,13 @@ import { argv } from 'process'
 const devMode = argv[2] === '-d';
 const settings = {
   entryPoints: ['src/index.tsx'],
-  sourcemap: devMode ? 'inline' : false,
+  sourcemap: 'linked',
   bundle: true,
   loader: {
     '.woff': 'file',
     '.woff2': 'file'
   },
+  minify: true,
   outdir: 'dist',
 }
 if (devMode) {
