@@ -53,7 +53,7 @@ class App {
     this.express.set('views', '../views');
 
     this.express.use('/client', express.static('../client'));
-
+    this.express.use('/favicon.png', express.static('../favicon.png'))
     this.express.get('/', (_req, res) => {
       res.send('Hello World!');
     });
