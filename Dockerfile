@@ -18,8 +18,9 @@ WORKDIR /home/node/app
 RUN npm ci
 COPY --chown=node:node lib lib
 COPY --chown=node:node tsconfig.json tsconfig.json
-COPY --chown=node:node favicon.png favicon.png
 RUN npm run build
+
+COPY --chown=node:node favicon.png favicon.png
 # COPY views views
 COPY --from=client-builder --chown=node:node /home/node/app/index.html client/index.html
 COPY --from=client-builder --chown=node:node /home/node/app/style.css client/style.css
