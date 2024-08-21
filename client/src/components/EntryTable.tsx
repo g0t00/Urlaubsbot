@@ -35,7 +35,7 @@ const DateEditor: React.ComponentType<DataTypeProvider.ValueEditorProps> = ({ va
       margin="normal"
       label=""
       clearable={column.name === 'endTime'}
-      value={value}
+      value={value == undefined ? null : value}
       onChange={onValueChange}
     />
   </MuiPickersUtilsProvider>
@@ -60,6 +60,7 @@ const EditCell = ({ errors, addedErrors, ...props }: any) => {
           ? React.cloneElement(child, { disabled: errors[props.tableRow.rowId] || addedErrors[props.tableRow.rowId] })
           : child
       ))}
+
     </TableEditColumn.Cell>
   );
 };
@@ -258,6 +259,7 @@ export function EntryTable(props: IEntryTableProps) {
             console.log('c', errors);
             setErrors(errors)
           }}
+
           onAddedRowsChange={addedRows => {
             const errors = Object.entries(addedRows).reduce(
               (acc, [rowId, row]) => {

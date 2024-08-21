@@ -1,10 +1,10 @@
 import { createHash, createHmac } from 'crypto';
+import * as EventEmitter from 'events';
 import * as express from 'express';
 import { app } from './app';
-import { GroupModel } from './group';
-import * as EventEmitter from 'events';
 import { Entry } from './entry';
-import { IGroupMemberChange } from './interfaces'
+import { GroupModel } from './group';
+import { IGroupMemberChange } from './interfaces';
 export class Web {
   router: express.Router;
   emitter = new EventEmitter();
@@ -218,7 +218,13 @@ export class Web {
     })
     this.router.post('/:id', this.authorize, async (req, res) => {
       const groupId = req.params.id;
-      let { memberId, description = '', amount = '', partialGroupMembers = [] } = req.body;
+      let { memberId, description = '', amount = '', partialGroupMembers = [], time, endTime } = req.body;
+      time = new Date(time)
+      if (endTime ?? '' != '') {
+        endTime = new Date(endTime)
+      } else {
+        endTime = undefined
+      }
       if (typeof amount === 'string') {
         amount = parseFloat(amount.replace(',', '.'));
 
@@ -235,7 +241,7 @@ export class Web {
         res.status(500);
         return res.send('Invalid amount tramsitted!');
       }
-      if (await groupObj.addEntry(memberId, description, amount, partialGroupMembers)) {
+      if (await groupObj.addEntry(memberId, description, amount, time, endTime, partialGroupMembers)) {
         res.status(200);
         return res.json(true);
       }

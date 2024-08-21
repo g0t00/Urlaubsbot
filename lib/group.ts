@@ -295,14 +295,15 @@ export class Group {
     return true;
   }
 
-  async addEntry(this: DocumentType<Group>, memberId: number, description: string, amount: number, partialGroupMembers?: number[]) {
+  async addEntry(this: DocumentType<Group>, memberId: number, description: string, amount: number, time: Date = new Date(), endTime?: Date, partialGroupMembers?: number[]) {
     let found = false;
     this.members.forEach(member => {
       if (member.id === memberId) {
         const entry = new Entry();
         entry.description = description;
         entry.amount = amount;
-        entry.time = new Date();
+        entry.time = time;
+        entry.endTime = endTime == null ? undefined : endTime;
         entry.uuid = uuid();
         if (partialGroupMembers) {
           entry.partialGroupMembers = partialGroupMembers;

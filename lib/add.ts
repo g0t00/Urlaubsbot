@@ -311,7 +311,7 @@ async function addPartial(ctx: MatchedContext<Context<Update>, "text">, useForei
     });
   }
 
-  if (!group.addEntry(memberId, description, amount, partialGroupMembers.map(member => member.id))) {
+  if (!group.addEntry(memberId, description, amount, new Date(), undefined, partialGroupMembers.map(member => member.id))) {
     ctx.reply('Error while adding!');
   }
 };
