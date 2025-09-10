@@ -44,7 +44,7 @@ export class Group {
   groupBannedUsers: GroupBannedUser[];
   @prop({ default: 'initial' })
   public state: GroupState;
-  @prop({ type: ITransaction, default: null })
+  @prop({ type: ITransaction[], default: null })
   public transactions: ITransaction[] | null;
   @prop({ default: false })
   dayMode: boolean;
