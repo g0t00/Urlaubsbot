@@ -644,6 +644,8 @@ class App {
   async runReadyCheck(groupObj: DocumentType<Group>) {
     groupObj.state = 'readyCheck';
     await groupObj.save();
+    let chatId = null;
+    let messageId = null;
     let message: PromiseType<ReturnType<Telegram['sendMessage']>>;
     while (groupObj.members.reduce((prev, member) => prev && member.readyCheckConfirmed, true) === false) {
       await new Promise<void>(async resolve => {
@@ -670,27 +672,36 @@ class App {
             Markup
               .inlineKeyboard(keyboard)
           );
-
         }
-
+        chatId = message.chat.id;
+        messageId = message.message_id;
       })
-
+    }
+    if (chatId && messageId) {
+      await this.bot.telegram.editMessageReplyMarkup(chatId, messageId, undefined, {
+        inline_keyboard: callbackHandler.getKeyboard(groupObj.members.map(member => [
+          { text: `${member.name} ✅`, clicked: async () => { } }]))
+      })
     }
     this.runTransactionCheck(groupObj);
-
   }
   async runTransactionCheck(groupObj: DocumentType<Group>) {
     groupObj.state = 'transactionCheck';
+    console.log(groupObj.transactions);
     const evaluation = await groupObj.evaluate();
+    console.log(evaluation.transactions);
     groupObj.transactions = evaluation.transactions;
+    console.log(groupObj.transactions);
     await groupObj.save();
+    let chatId = null;
+    let messageId = null;
     let message: PromiseType<ReturnType<Telegram['sendMessage']>>;
     function transactionFormatter(transaction: ITransaction) {
       return `${transaction.from} -> ${transaction.to} ${Math.round(transaction.amount * 100) / 100} ${transaction.confirmed ? `✅` : `🔳`}`;
     }
-    while ((groupObj.transactions as ITransaction[])?.reduce((prev, trans) => prev && trans.confirmed, true) === false || true) {
+    while (groupObj.transactions?.reduce((prev, trans) => prev && trans.confirmed, true) === false) {
       await new Promise<void>(async resolve => {
-        const keyboard = callbackHandler.getKeyboard((groupObj.transactions as ITransaction[]).map(transaction => [({
+        const keyboard = callbackHandler.getKeyboard(groupObj.transactions?.map(transaction => [({
           text: transactionFormatter(transaction),
           clicked: async () => {
             transaction.confirmed = !transaction.confirmed;
@@ -698,9 +709,9 @@ class App {
             resolve();
             return false
           }
-        })]));
+        })]) ?? []);
         const messageText = `Transaction Check. Please confirm Transactions...\n` +
-          (groupObj.transactions as ITransaction[]).map(transaction => `${transactionFormatter(transaction)} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''} `).join('\n');
+          groupObj.transactions?.map(transaction => `${transactionFormatter(transaction)} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''} `).join('\n');
         if (message) {
           try {
             const response = await this.bot.telegram.editMessageReplyMarkup(message.chat.id, message.message_id, undefined, { inline_keyboard: keyboard });
@@ -723,10 +734,16 @@ class App {
               }
             }
           );
-
         }
-
+        chatId = message.chat.id;
+        messageId = message.message_id;
       });
+    }
+    if (chatId && messageId) {
+      await this.bot.telegram.editMessageReplyMarkup(chatId, messageId, undefined, {
+        inline_keyboard: callbackHandler.getKeyboard(groupObj.transactions.map(transaction => [
+          { text: transactionFormatter(transaction), clicked: async () => { } }]))
+      })
     }
     groupObj.state = 'done';
     await groupObj.save();

@@ -201,13 +201,12 @@ export class Group {
         const to = membersCopy[membersCopy.length - 1];
         const amount = Math.min(Math.abs(from.open), to.open);
         const mapping = await PaypalMappingModel.findOne({ telegramId: to.id });
-        const transaction = new ITransaction(
-          from.name,
-          to.name,
-          to.id,
-          amount,
-          false,
-        );
+        const transaction = new ITransaction();
+        transaction.from = from.name;
+        transaction.to = to.name;
+        transaction.toId = to.id;
+        transaction.amount = amount;
+        transaction.confirmed = false;
         if (mapping) {
           transaction.paypalLink = mapping.link + '/' + roundToCent(amount);
         }
