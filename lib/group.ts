@@ -1,5 +1,5 @@
 // import {Document, Schema, Model, model} from 'mongoose';
-import { DocumentType, getModelForClass, post, pre, prop } from '@typegoose/typegoose';
+import { DocumentType, getModelForClass, post, pre, prop, PropType } from '@typegoose/typegoose';
 import * as _ from 'lodash';
 import * as moment from 'moment-timezone';
 import { v4 as uuid } from 'uuid';
@@ -44,7 +44,7 @@ export class Group {
   groupBannedUsers: GroupBannedUser[];
   @prop({ default: 'initial' })
   public state: GroupState;
-  @prop({ type: ITransaction[], default: null })
+  @prop({ type: () => [ITransaction], default: null }, PropType.ARRAY)
   public transactions: ITransaction[] | null;
   @prop({ default: false })
   dayMode: boolean;
