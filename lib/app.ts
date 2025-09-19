@@ -691,7 +691,6 @@ class App {
     const evaluation = await groupObj.evaluate();
     console.log(evaluation.transactions);
     groupObj.transactions = evaluation.transactions;
-    console.log(groupObj.transactions);
     await groupObj.save();
     let chatId = null;
     let messageId = null;
