@@ -687,7 +687,6 @@ class App {
   }
   async runTransactionCheck(groupObj: DocumentType<Group>) {
     groupObj.state = 'transactionCheck';
-    console.log(groupObj.transactions);
     const evaluation = await groupObj.evaluate();
     groupObj.transactions = evaluation.transactions;
     await groupObj.save();
