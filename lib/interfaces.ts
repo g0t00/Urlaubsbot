@@ -1,3 +1,5 @@
+import { prop } from "@typegoose/typegoose";
+
 export type GroupState = 'initial' | 'readyCheck' | 'transactionCheck' | 'done';
 export interface IGroupData {
   members: IMember[];
@@ -37,15 +39,17 @@ export interface IGroupMemberChange {
   allTime?: boolean;
 }
 export class ITransaction {
-  constructor(
-    public from: string,
-    public to: string,
-    public toId: number,
-    public amount: number,
-    public confirmed: boolean,
-    public paypalLink?: string,
+    @prop()
+    public from: string;
+    @prop()
+    public to: string;
+    @prop()
+    public toId: number;
+    @prop()
+    public amount: number;
+    @prop()
+    public confirmed: boolean;
+    @prop()
+    public paypalLink?: string;
 
-  ) {
-
-  }
 }
