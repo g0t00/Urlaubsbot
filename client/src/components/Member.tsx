@@ -48,8 +48,8 @@ export function Member({ member, i, groupId, groupData }: { member: IMember; i: 
               </Box></Modal>
               <Button onClick={handleOpen}>Info</Button>
             </TableCell>
-            <TableCell><Input type="number" value={member.weight} step="any"
-              onChange={event => valueChanged(member.id, groupId, { weight: parseFloat(event.target.value) })}
+            <TableCell><Input type="number" value={member.weight} step="any" min="0"
+              onChange={event => valueChanged(member.id, groupId, { weight: parseFloat(event.target.value.replace(",", ".")) })}
             /></TableCell>
           </TableRow>
           {groupData.dayMode && <>
