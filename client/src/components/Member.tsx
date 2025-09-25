@@ -1,7 +1,7 @@
 import { IGroupData, IMember } from '../interfaces';
 import { roundToCent } from '../util';
 import * as React from "react";
-import { Card } from '@material-ui/core';
+import { Box, Button, Card, Input, Modal } from '@material-ui/core';
 import { CardContent } from '@material-ui/core';
 import { Grid } from '@material-ui/core';
 import { Table } from '@material-ui/core';
@@ -16,6 +16,21 @@ import DateFnsUtils from '@date-io/date-fns';
 import { valueChanged } from './Group';
 
 export function Member({ member, i, groupId, groupData }: { member: IMember; i: number; groupId: string; groupData?: IGroupData; }) {
+  const [open, setOpen] = React.useState(false);
+  const handleOpen = () => setOpen(true);
+  const handleClose = () => setOpen(false);
+  const groupWeight = groupData.members.reduce((p, c) => p + c.weight, 0);
+  const style = {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: 400,
+    bgcolor: 'background.paper',
+    border: '2px solid #000',
+    boxShadow: 24,
+    p: 4,
+  };
   return <Grid item xs={12} sm={6} md={3} key={i}>
     <Card>
       <CardContent>
@@ -23,6 +38,20 @@ export function Member({ member, i, groupId, groupData }: { member: IMember; i: 
           {member.name}
         </Typography>
         <Table><TableBody>
+          <TableRow>
+            <TableCell>Weight<br />
+              <Modal open={open} onClose={handleClose}><Box css={style}>
+                e.g. weight 2 has to pay the same as 2 persons (with weight = 1).
+                <br />Is ignored for Entries that a "for" particular members
+                Total weight in group: {groupWeight}<br />
+                So this member pays {roundToCent(member.weight / groupWeight * 100)}%.
+              </Box></Modal>
+              <Button onClick={handleOpen}>Info</Button>
+            </TableCell>
+            <TableCell><Input type="number" value={member.weight} step="any"
+              onChange={event => valueChanged(member.id, groupId, { weight: parseFloat(event.target.value) })}
+            /></TableCell>
+          </TableRow>
           {groupData.dayMode && <>
             <TableRow>
               <TableCell colSpan={2}><FormControlLabel
