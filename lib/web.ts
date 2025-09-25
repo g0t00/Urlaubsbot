@@ -250,6 +250,7 @@ export class Web {
       }
       res.send('Error while adding');
     });
+    const telegramChangeDebounce: Record<string, ReturnType<typeof setTimeout>> = {}
     this.router.post('/:id/member/:memberId', this.authorize, async (req, res) => {
       const change = req.body as IGroupMemberChange;
       console.log(req.body);
@@ -295,10 +296,15 @@ export class Web {
           message = `Changed ${member.name} mode to partial Time start: ${member.start?.toLocaleString()} end: ${member.end?.toLocaleString()}`;
 
         }
-        await app.bot.telegram.sendMessage(groupObj.telegramId, message, { parse_mode: 'HTML' } as any);
+        app.bot.telegram.sendMessage(groupObj.telegramId, message, { parse_mode: 'HTML' } as any);
       }
       if (change.weight !== undefined) {
-        await app.bot.telegram.sendMessage(groupObj.telegramId, `Changed ${member.name} weight to ${member.weight}`, { parse_mode: 'HTML' } as any);
+        let key = `${memberId}-${groupObj.id}-${Object.keys(change)}}`
+        if (key in telegramChangeDebounce) {
+          clearTimeout(telegramChangeDebounce[key])
+        }
+        telegramChangeDebounce[key] = setTimeout(() =>
+          app.bot.telegram.sendMessage(groupObj.telegramId, `Changed ${member.name} weight to ${member.weight}`, { parse_mode: 'HTML' } as any), 1000)
 
       }
 
