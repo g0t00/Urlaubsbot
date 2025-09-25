@@ -20,6 +20,7 @@ export interface IMember {
   entries: IEntry[];
   readyCheckConfirmed: boolean;
   hasToPayEntries: IPayEntry[];
+  weight: number;
 }
 export interface IEntry {
   description: string;
@@ -37,19 +38,20 @@ export interface IGroupMemberChange {
   start?: Date;
   end?: Date;
   allTime?: boolean;
+  weight?: number;
 }
 export class ITransaction {
-    @prop()
-    public from: string;
-    @prop()
-    public to: string;
-    @prop()
-    public toId: number;
-    @prop()
-    public amount: number;
-    @prop()
-    public confirmed: boolean;
-    @prop()
-    public paypalLink?: string;
+  @prop()
+  public from: string;
+  @prop()
+  public to: string;
+  @prop()
+  public toId: number;
+  @prop()
+  public amount: number;
+  @prop()
+  public confirmed: boolean;
+  @prop()
+  public paypalLink?: string;
 
 }

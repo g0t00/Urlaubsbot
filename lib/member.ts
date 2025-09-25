@@ -17,4 +17,6 @@ export class Member {
   allTime: boolean;
   @prop({ default: false })
   readyCheckConfirmed: boolean;
+  @prop({ default: 1 })
+  weight: number;
 };

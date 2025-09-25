@@ -53,6 +53,7 @@ interface IChange {
   start: Date;
   end: Date;
   allTime: boolean;
+  weight: number;
 }
 export async function valueChanged(memberId: number, groupId: string, change: Partial<IChange>) {
   if (change.start && change.start) {

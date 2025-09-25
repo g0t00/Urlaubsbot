@@ -220,6 +220,9 @@ export class Web {
       const groupId = req.params.id;
       let { memberId, description = '', amount = '', partialGroupMembers = [], time, endTime } = req.body;
       time = new Date(time)
+      if (isNaN(time.getTime())) {
+        time = new Date()
+      }
       if (endTime ?? '' != '') {
         endTime = new Date(endTime)
       } else {
@@ -273,6 +276,9 @@ export class Web {
       }
       if (typeof change.allTime !== 'undefined') {
         member.allTime = change.allTime;
+      }
+      if (typeof change.weight !== 'undefined') {
+        member.weight = change.weight
       }
       await groupObj.save();
       res.status(200);

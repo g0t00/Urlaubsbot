@@ -99,7 +99,8 @@ export class Group {
           for (const entry of memberToPay.entries) {
             let partialAmount;
             if (!entry.partialGroupMembers || entry.partialGroupMembers.length === 0) {
-              partialAmount = entry.amount / this.members.length;
+              let totalWeight = this.members.map(m => m.weight).reduce((p, c) => p + c, 0)
+              partialAmount = (entry.amount * member.weight) / totalWeight;
             } else if (entry.partialGroupMembers.indexOf(member.id) > -1) {
               partialAmount = entry.amount / entry.partialGroupMembers.length;
             }
@@ -127,8 +128,9 @@ export class Group {
               for (let i = 0; i < days; i++) {
                 const currentDay = moment(entry.time).add(i, 'days');
                 const membersWhoHaveToPay = this.members.filter(memberFilter => memberFilter.allTime || (memberFilter.start <= currentDay.toDate() && moment(memberFilter.end).endOf('day').toDate() > currentDay.toDate()));
+                const weightSum = membersWhoHaveToPay.reduce((p, c) => p + c.weight, 0)
                 if (membersWhoHaveToPay.findIndex(memberFind => memberFind.id === member.id) > -1) {
-                  partialAmount += perDay / membersWhoHaveToPay.length;
+                  partialAmount += (perDay * member.weight) / weightSum;
                 }
               }
               // toPay += entry.amount / this.members.filter(memberFilter => memberFilter.allTime || (memberFilter.start < entry.time && memberFilter.end > entry.time)).length;
@@ -170,7 +172,8 @@ export class Group {
         hasPayed,
         toPay,
         entries: entries,
-        hasToPayEntries
+        hasToPayEntries,
+        weight: member.weight
       };
     });
     let transactions: ITransaction[] = [];
