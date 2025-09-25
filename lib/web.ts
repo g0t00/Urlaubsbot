@@ -250,6 +250,7 @@ export class Web {
       }
       res.send('Error while adding');
     });
+    const telegramChangeDebounce: Record<string, ReturnType<typeof setTimeout>> = {}
     this.router.post('/:id/member/:memberId', this.authorize, async (req, res) => {
       const change = req.body as IGroupMemberChange;
       console.log(req.body);
@@ -278,19 +279,34 @@ export class Web {
         member.allTime = change.allTime;
       }
       if (typeof change.weight !== 'undefined') {
+        if (typeof change.weight !== 'number' || change.weight < 0) {
+          change.weight = 0
+        }
         member.weight = change.weight
       }
       await groupObj.save();
       res.status(200);
       console.log(change, member);
       let message: string;
-      if (member.allTime) {
-        message = `Changed ${member.name} mode to allTime`;
-      } else {
-        message = `Changed ${member.name} mode to partial Time start: ${member.start?.toLocaleString()} end: ${member.end?.toLocaleString()}`;
+      if (change.allTime !== undefined || change.start !== undefined || change.end !== undefined) {
+
+        if (member.allTime) {
+          message = `Changed ${member.name} mode to allTime`;
+        } else {
+          message = `Changed ${member.name} mode to partial Time start: ${member.start?.toLocaleString()} end: ${member.end?.toLocaleString()}`;
+
+        }
+        app.bot.telegram.sendMessage(groupObj.telegramId, message, { parse_mode: 'HTML' } as any);
+      }
+      if (change.weight !== undefined) {
+        let key = `${memberId}-${groupObj.id}-${Object.keys(change)}}`
+        if (key in telegramChangeDebounce) {
+          clearTimeout(telegramChangeDebounce[key])
+        }
+        telegramChangeDebounce[key] = setTimeout(() =>
+          app.bot.telegram.sendMessage(groupObj.telegramId, `Changed ${member.name} weight to ${member.weight}`, { parse_mode: 'HTML' } as any), 1000)
 
       }
-      await app.bot.telegram.sendMessage(groupObj.telegramId, message, { parse_mode: 'HTML' } as any);
 
       return res.json(member);
     })
