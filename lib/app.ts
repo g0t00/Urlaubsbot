@@ -1,5 +1,5 @@
 import { DocumentType } from '@typegoose/typegoose';
-import * as express from 'express';
+import express from 'express';
 import { connect } from 'mongoose';
 import { Markup, Middleware, Telegraf, Telegram } from 'telegraf';
 import { PromiseType } from 'utility-types';
@@ -49,8 +49,6 @@ class App {
     });
     console.log('STRATING')
     this.express = express();
-    this.express.set('view engine', 'ejs');
-    this.express.set('views', '../views');
 
     this.express.use('/client', express.static('../client'));
     this.express.use('/favicon.png', express.static('../favicon.png'))
@@ -68,7 +66,6 @@ class App {
     });
     this.express.use(express.json());
     this.express.use(express.urlencoded({ extended: true }));
-    this.express.use('/font-awesome', express.static('./client/node_modules/@fortawesome/fontawesome-free'));
     this.express.use('/group', web.router);
     // this.bot.use((ctx, next) => {
     //   ctx.groupObj = GroupModel.find({telegramId: ctx.chat.id});

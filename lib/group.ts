@@ -1,8 +1,8 @@
 // import {Document, Schema, Model, model} from 'mongoose';
 import { DocumentType, getModelForClass, post, pre, prop, PropType } from '@typegoose/typegoose';
 import * as _ from 'lodash';
-import * as moment from 'moment-timezone';
-import { v4 as uuid } from 'uuid';
+import moment from 'moment-timezone';
+import { randomUUID } from 'crypto';
 import { app } from './app';
 import { Entry } from './entry';
 import { GroupState, IGroupData, IMember, IPayEntry, ITransaction } from './interfaces';
@@ -20,9 +20,8 @@ export class GroupBannedUser {
   @prop({ required: true })
   id: number;
 }
-@pre<Group>('save', function (next) { // or @pre(this: Car, 'save', ...
+@pre<Group>('save', function () {
   this.lastExport = new Date();
-  next();
 })
 @post<Group>('save', function (group) {
   web.emitter.emit(group.id);
@@ -306,7 +305,7 @@ export class Group {
         entry.amount = amount;
         entry.time = time;
         entry.endTime = endTime == null ? undefined : endTime;
-        entry.uuid = uuid();
+        entry.uuid = randomUUID();
         if (partialGroupMembers) {
           entry.partialGroupMembers = partialGroupMembers;
         }
