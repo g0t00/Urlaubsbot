@@ -66,7 +66,7 @@ export default class PlotWrapper extends React.Component<IProps, IState> {
     return <div>
       <Plot
         data={data}
-        layout={{ width: 640, height: 640, title: 'Has Payed' }}
+        layout={{ width: 640, height: 640, title: { text: 'Has Payed' } }}
       />
     </div>;
 

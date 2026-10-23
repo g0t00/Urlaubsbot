@@ -1,6 +1,6 @@
 import { createHash, createHmac } from 'crypto';
-import * as EventEmitter from 'events';
-import * as express from 'express';
+import { EventEmitter } from 'events';
+import express from 'express';
 import { app } from './app';
 import { Entry } from './entry';
 import { GroupModel } from './group';

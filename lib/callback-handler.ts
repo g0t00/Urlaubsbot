@@ -1,8 +1,7 @@
-import * as EventEmitter from 'events';
+import { EventEmitter} from 'events';
 import { Context, Markup } from 'telegraf';
-import { Update, User } from 'telegraf/typings/core/types/typegram';
-import { WizardContextWizard } from 'telegraf/typings/scenes';
-import { v1 as uuid } from 'uuid';
+import { Update, User } from 'telegraf/types';
+import { randomUUID } from 'crypto';
 import { MatchedContext } from './add';
 import { app } from './app';
 export interface IButton {
@@ -31,7 +30,7 @@ export class CallbackHandler {
   }
   getKeyboard(button2d: IButton[][]) {
     // console.log(this);
-    const keyboardUuid = uuid();
+    const keyboardUuid = randomUUID();
     const keyboard = button2d.map((button1d, index) => {
       return button1d.map((button, index2) => {
         return Markup.button.callback(button.text, keyboardUuid + '%' + index + '%' + index2);
