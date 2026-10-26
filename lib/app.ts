@@ -13,7 +13,6 @@ import { ITransaction } from './interfaces';
 import { PaypalMappingModel } from './paypalMapping';
 import { roundToCent } from './util';
 import { web } from './web';
-// import { Sheet } from'./sheet';
 if (typeof process.env.TOKEN !== 'string') {
   throw new Error('Token not set!');
 }

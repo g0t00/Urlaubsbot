@@ -173,20 +173,6 @@ export class Web {
       }
       res.send('Error while deleting');
     });
-    // this.router.get('/sheet-export/:groupId', async (req, res) => {
-    //   const groupId = parseInt(req.params.groupId, 10);
-    //   const groupObj = database.getGroupById(groupId);
-    //   if (groupObj === null) {
-    //     return res.send('GroupModel not found!');
-    //   }
-    //   try {
-    //     await Sheet.export(groupObj);
-    //     return res.send('ok');
-    //   } catch (e) {
-    //     console.error(e);
-    //     res.status(500).send(e.message);
-    //   }
-    // });
     this.router.post('/:id/dayMode', this.authorize, async (req, res) => {
       const groupId = req.params.id;
       const { dayMode } = req.body;
