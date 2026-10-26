@@ -19,7 +19,7 @@ import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
 const PlotWrapper = React.lazy(() => import('./PlotWrapper'));
 import { MoneySplit } from './MoneySplit';
-import { API_BASE } from '../api';
+import { API_BASE, authHeaders } from '../api';
 import { AppBar, Tabs, Tab } from '@material-ui/core';
 import { Member } from './Member';
 import { startOfDay } from 'date-fns';
@@ -63,7 +63,7 @@ export async function valueChanged(memberId: number, groupId: string, change: Pa
     method: 'POST',
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Auth": localStorage.getItem('user')
+      ...authHeaders(),
       // "Content-Type": "application/x-www-form-urlencoded",
     },
     body: JSON.stringify(change)
@@ -113,7 +113,7 @@ export default function Group() {
       method: 'POST',
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Auth": localStorage.getItem('user')
+        ...authHeaders(),
         // "Content-Type": "application/x-www-form-urlencoded",
       },
       body: JSON.stringify({ dayMode: event.target.checked })
@@ -123,8 +123,11 @@ export default function Group() {
 
 
 
+  if (groupData === undefined) {
+    return <h1>Loading…</h1>;
+  }
   const entriesFlat: IEntryFlat[] = [];
-  for (const member of (groupData?.members ?? [])) {
+  for (const member of groupData.members) {
     for (const entry of member.entries) {
       entriesFlat.push({ name: member.name, ...entry });
     }
@@ -155,7 +158,7 @@ export default function Group() {
       </AppBar>
       <TabPanel value={tab} index={0}>
         <Grid container spacing={10}>
-          {(groupData?.members ?? []).map((member, i) => <Member key={member.id} member={member} i={i} groupId={groupId} groupData={groupData} />)}
+          {groupData.members.map((member, i) => <Member key={member.id} member={member} i={i} groupId={groupData.id} groupData={groupData} />)}
         </Grid>
       </TabPanel>
       <TabPanel value={tab} index={1}>

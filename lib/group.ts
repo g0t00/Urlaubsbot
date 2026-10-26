@@ -8,6 +8,7 @@ import { Entry } from './entry';
 import { GroupState, IGroupData, IMember, IPayEntry, ITransaction } from './interfaces';
 import { Member } from './member';
 import { PaypalMappingModel } from './paypalMapping';
+import { Transaction } from './transaction';
 import { roundToCent } from './util';
 import { web } from './web';
 const AsciiTable = require('ascii-table');
@@ -43,7 +44,7 @@ export class Group {
   groupBannedUsers: GroupBannedUser[];
   @prop({ default: 'initial' })
   public state: GroupState;
-  @prop({ type: () => [ITransaction], default: null }, PropType.ARRAY)
+  @prop({ type: () => [Transaction], default: null }, PropType.ARRAY)
   public transactions: ITransaction[] | null;
   @prop({ default: false })
   dayMode: boolean;
@@ -203,7 +204,7 @@ export class Group {
         const to = membersCopy[membersCopy.length - 1];
         const amount = Math.min(Math.abs(from.open), to.open);
         const mapping = await PaypalMappingModel.findOne({ telegramId: to.id });
-        const transaction = new ITransaction();
+        const transaction = new Transaction();
         transaction.from = from.name;
         transaction.to = to.name;
         transaction.toId = to.id;

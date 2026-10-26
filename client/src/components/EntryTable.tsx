@@ -17,7 +17,7 @@ import { MuiPickersUtilsProvider, DatePicker } from '@material-ui/pickers';
 import DateFnsUtils from '@date-io/date-fns';
 
 
-import { API_BASE } from '../api';
+import { API_BASE, authHeaders } from '../api';
 import { useState } from 'react';
 export interface IEntryTableProps {
   entries: IEntryFlat[];
@@ -106,6 +106,9 @@ export function EntryTable(props: IEntryTableProps) {
         const amount = parseFloat(add.amount);
         if (add.name !== '' && Number.isFinite(amount)) {
           const member = props.groupData.members.find(member => member.name === add.name);
+          if (!member) {
+            continue;
+          }
 
           const body = {
             memberId: member.id,
@@ -119,7 +122,7 @@ export function EntryTable(props: IEntryTableProps) {
             method: 'POST',
             headers: {
               "Content-Type": "application/json; charset=utf-8",
-              "Auth": localStorage.getItem('user')
+              ...authHeaders(),
               // "Content-Type": "application/x-www-form-urlencoded",
             },
             body: JSON.stringify(body)
@@ -136,7 +139,7 @@ export function EntryTable(props: IEntryTableProps) {
           method: 'PUT',
           headers: {
             "Content-Type": "application/json; charset=utf-8",
-            "Auth": localStorage.getItem('user')
+            ...authHeaders(),
             // "Content-Type": "application/x-www-form-urlencoded",
           },
           body: JSON.stringify(changes)
@@ -176,8 +179,8 @@ export function EntryTable(props: IEntryTableProps) {
     if (value.length === 0) {
       return <span>All</span>;
     }
-    const valueSort = value.slice().sort((a, b) => (props.groupData.members.find(member => member.id === a)?.name ?? '').localeCompare(props.groupData.members.find(member => member.id === b)?.name));
-    return <span>{valueSort.map(partialGroupMemberId => props.groupData.members.find(member => member.id === partialGroupMemberId).name).join(', ')}</span>;
+    const valueSort = value.slice().sort((a, b) => (props.groupData.members.find(member => member.id === a)?.name ?? '').localeCompare(props.groupData.members.find(member => member.id === b)?.name ?? ''));
+    return <span>{valueSort.map(partialGroupMemberId => props.groupData.members.find(member => member.id === partialGroupMemberId)?.name).join(', ')}</span>;
   }
   function partialGroupEditor({ value, onValueChange }: DataTypeProvider.ValueEditorProps) {
     return <FormGroup>
@@ -198,10 +201,10 @@ export function EntryTable(props: IEntryTableProps) {
           value={value || []}
           onChange={event => onValueChange(event.target.value)}
           input={<Input id="select-multiple-chip" />}
-          renderValue={(selected: number[]) => (
+          renderValue={selected => (
             <div>
-              {selected.map((value: number) => {
-                const name = props.groupData.members.find(member => member.id === value).name;
+              {(selected as number[]).map(value => {
+                const name = props.groupData.members.find(member => member.id === value)?.name;
                 return <Chip key={value} label={name} />
               })}
             </div>
@@ -226,7 +229,10 @@ export function EntryTable(props: IEntryTableProps) {
     />
   };
   async function deleteEntry() {
-    await fetch(API_BASE + `/${props.groupData.id}/${state.deleteDialogEntry.uuid}`, { method: 'DELETE', headers: { "Auth": localStorage.getItem('user') } });
+    if (!state.deleteDialogEntry) {
+      return;
+    }
+    await fetch(API_BASE + `/${props.groupData.id}/${state.deleteDialogEntry.uuid}`, { method: 'DELETE', headers: authHeaders() });
     console.log(state.deleteDialogEntry);
     setState({ ...state, deleteDialogOpen: false });
   }
@@ -311,8 +317,8 @@ export function EntryTable(props: IEntryTableProps) {
             <><>{state.deleteDialogEntry.name}<br /></>
               <>{state.deleteDialogEntry.description}<br /></>
               <>{state.deleteDialogEntry.amount}<br /></>
-              <>{state.deleteDialogEntry.partialGroupMembers.join(', ')}<br /></>
-              <>{state.deleteDialogEntry.time.toLocaleString()}<br /></></>
+              <>{state.deleteDialogEntry.partialGroupMembers?.join(', ')}<br /></>
+              <>{state.deleteDialogEntry.time?.toLocaleString()}<br /></></>
           }
         </DialogContentText>
       </DialogContent>

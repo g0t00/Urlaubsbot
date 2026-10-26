@@ -1,12 +1,10 @@
 import * as React from "react";
 import { IGroupData, IMember, IEntry, IGroupMemberChange } from '../interfaces'
-// I do not know why this needs to be so ugly...
-(window as any).global = window;
-const Plotly = require('plotly.js/lib/core');
-Plotly.register([
-  require('plotly.js/lib/sankey'),
-]);
+import '../globalShim';
+import Plotly from 'plotly.js/lib/core';
+import sankey from 'plotly.js/lib/sankey';
 import createPlotlyComponent from 'react-plotly.js/factory';
+Plotly.register([sankey]);
 console.log(Plotly, 'Plotly');
 const Plot = createPlotlyComponent(Plotly);
 interface IProps {
