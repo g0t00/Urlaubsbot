@@ -1,4 +1,4 @@
-FROM node:20.6.1-bullseye
+FROM node:24-bookworm
 RUN npm i -g nodemon
 USER node
 WORKDIR /home/node/app

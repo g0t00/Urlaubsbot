@@ -1,6 +1,5 @@
-import { Composer, Context, Markup, NarrowedContext } from 'telegraf';
-import { Update } from 'telegraf/typings/core/types/typegram';
-import * as tt from 'telegraf/typings/telegram-types';
+import { Composer, Context, Markup, NarrowedContext, Types } from 'telegraf';
+import { Update } from 'telegraf/types';
 import { app } from './app';
 import { callbackHandler } from './callback-handler';
 import { GroupModel } from './group';
@@ -9,8 +8,8 @@ export const addMiddleware = new Composer();
 
 export type MatchedContext<
   C extends Context,
-  T extends tt.UpdateType | tt.MessageSubType
-> = NarrowedContext<C, tt.MountMap[T]>
+  T extends Types.UpdateType | Types.MessageSubType
+> = NarrowedContext<C, Types.MountMap[T]>
 addMiddleware.command('add', ctx => {
   add(ctx, false);
 });
