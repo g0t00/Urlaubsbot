@@ -7,7 +7,7 @@
     "build": "tsc --project .",
     "build-watch": "tsc -w --project .",
     "run-watch": "nodemon --ignore client/ dist/app.js",
-    "test": "xo",
+    "lint": "eslint lib client/src",
     "start": "node dist/app.js",
     "build-client": "cd client && webpack"
   },
@@ -23,11 +23,16 @@
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
     "@types/lodash": "^4.17.27",
     "@types/node": "^24.19.2",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.0",
     "utility-types": "^3.11.0"
   }
 }

@@ -1,4 +1,4 @@
-import { IGroupData, IEntry, IGroupMemberChange } from '../interfaces'
+import { IGroupData, IEntry } from '../interfaces'
 // import deepcopy from "ts-deepcopy";
 
 import * as React from "react";
@@ -19,7 +19,7 @@ import Checkbox from '@material-ui/core/Checkbox';
 import FormGroup from '@material-ui/core/FormGroup';
 const PlotWrapper = React.lazy(() => import('./PlotWrapper'));
 import { MoneySplit } from './MoneySplit';
-import { API_BASE } from '../api';
+import { API_BASE, authHeaders } from '../api';
 import { AppBar, Tabs, Tab } from '@material-ui/core';
 import { Member } from './Member';
 import { startOfDay } from 'date-fns';
@@ -28,7 +28,7 @@ export enum sortRows {
   amount,
   time
 };
-function TabPanel(props: any) {
+function TabPanel(props: { children: React.ReactNode; value: number; index: number }) {
   const { children, value, index, ...other } = props;
 
   return (
@@ -63,7 +63,7 @@ export async function valueChanged(memberId: number, groupId: string, change: Pa
     method: 'POST',
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Auth": localStorage.getItem('user')
+      ...authHeaders(),
       // "Content-Type": "application/x-www-form-urlencoded",
     },
     body: JSON.stringify(change)
@@ -73,15 +73,10 @@ export async function valueChanged(memberId: number, groupId: string, change: Pa
 export default function Group() {
   const [groupData, setGroupData] = useState<IGroupData | undefined>();
   const [tab, setTab] = useState(0);
-  const [groupId, setGroupId] = useState<string>();
-  useEffect(() => {
-    setGroupId(window.location.hash.replace(/^#/, ''));
-    // groupId = window.location.hash.replace(/^#/, '');
-    // loadData();
-  }, []);
+  const [groupId] = useState(() => window.location.hash.replace(/^#/, ''));
   useEffect(() => {
     if (typeof groupId !== 'undefined') {
-      let source = new EventSource(API_BASE + '/' + groupId + '/stream?auth=' + localStorage.getItem('user'));
+      const source = new EventSource(API_BASE + '/' + groupId + '/stream?auth=' + localStorage.getItem('user'));
       source.onmessage = ({ data }) => {
         const json = JSON.parse(data);
         for (const member of json.members) {
@@ -105,7 +100,7 @@ export default function Group() {
     }
 
   }, [groupId])
-  async function changeDayMode(event: any) {
+  async function changeDayMode(event: React.ChangeEvent<HTMLInputElement>) {
     if (groupData === undefined) {
       return;
     }
@@ -113,7 +108,7 @@ export default function Group() {
       method: 'POST',
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Auth": localStorage.getItem('user')
+        ...authHeaders(),
         // "Content-Type": "application/x-www-form-urlencoded",
       },
       body: JSON.stringify({ dayMode: event.target.checked })
@@ -123,8 +118,11 @@ export default function Group() {
 
 
 
+  if (groupData === undefined) {
+    return <h1>Loading…</h1>;
+  }
   const entriesFlat: IEntryFlat[] = [];
-  for (const member of (groupData?.members ?? [])) {
+  for (const member of groupData.members) {
     for (const entry of member.entries) {
       entriesFlat.push({ name: member.name, ...entry });
     }
@@ -147,7 +145,7 @@ export default function Group() {
         />
       </FormGroup>
       <AppBar position="static">
-        <Tabs value={tab} onChange={(_, newValue: any) => setTab(newValue)} aria-label="simple tabs example">
+        <Tabs value={tab} onChange={(_, newValue: number) => setTab(newValue)} aria-label="simple tabs example">
           <Tab label="Summary" />
           <Tab label="Plots" />
           <Tab label="MoneySplit" />
@@ -155,7 +153,7 @@ export default function Group() {
       </AppBar>
       <TabPanel value={tab} index={0}>
         <Grid container spacing={10}>
-          {(groupData?.members ?? []).map((member, i) => <Member key={member.id} member={member} i={i} groupId={groupId} groupData={groupData} />)}
+          {groupData.members.map((member, i) => <Member key={member.id} member={member} i={i} groupId={groupData.id} groupData={groupData} />)}
         </Grid>
       </TabPanel>
       <TabPanel value={tab} index={1}>

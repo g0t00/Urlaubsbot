@@ -1,19 +1,18 @@
 import { DocumentType } from '@typegoose/typegoose';
 import express from 'express';
 import { connect } from 'mongoose';
-import { Markup, Middleware, Telegraf, Telegram } from 'telegraf';
+import { Markup, Telegraf, Telegram } from 'telegraf';
+import { Message } from 'telegraf/types';
 import { PromiseType } from 'utility-types';
 import { addMiddleware } from './add';
 import { IButton, callbackHandler } from './callback-handler';
 connect('mongodb://mongo/urlaubsbot');
-const AsciiTable = require('ascii-table');
 
 import { Group, GroupModel } from './group';
 import { ITransaction } from './interfaces';
 import { PaypalMappingModel } from './paypalMapping';
 import { roundToCent } from './util';
 import { web } from './web';
-// import { Sheet } from'./sheet';
 if (typeof process.env.TOKEN !== 'string') {
   throw new Error('Token not set!');
 }
@@ -35,12 +34,10 @@ class App {
 
   url: string;
   constructor() {
-    let webHook = false;
-    let port: number;
     process.chdir(__dirname);
-    port = parseInt(process.env.PORT ?? '3000');
+    const port = parseInt(process.env.PORT ?? '3000');
     this.url = process.env.HOST ?? `http://localhost:${port}`;
-    this.bot.telegram.getMe().then(botInfo => {
+    this.bot.telegram.getMe().then(() => {
       // console.log(botInfo);
       // this.bot.options.username = botInfo.username;
       this.bot.telegram.setMyCommands(this.commands);
@@ -60,7 +57,7 @@ class App {
     this.bot.launch();
     console.log('starting Polling');
     this.bot.telegram.setWebhook('');
-    this.bot.use((addMiddleware as unknown) as Middleware<any>);
+    this.bot.use(addMiddleware);
     this.express.listen(port, () => {
       console.log('express listening on port', port);
     });
@@ -105,7 +102,7 @@ class App {
         const groupMemberInfo = await this.bot.telegram.getChatMember(groupObj.telegramId, botInfo.id);
         if (groupMemberInfo.status !== 'administrator' || groupMemberInfo.can_pin_messages !== true) {
           if (groupObj.pinningRightsCooldown === undefined || new Date().getDate() - groupObj.pinningRightsCooldown.getDate() > 1000 * 60 * 60 * 24) {
-            const message = await this.bot.telegram.sendMessage(groupObj.telegramId, 'Please give Pinning Rights.');
+            await this.bot.telegram.sendMessage(groupObj.telegramId, 'Please give Pinning Rights.');
             groupObj.pinningRightsCooldown = new Date();
             await groupObj.save();
           }
@@ -133,7 +130,7 @@ class App {
         await groupObj.save();
         ctx.reply('New group created: ' + groupObj.name);
       }
-      for (const member of ((message as any).new_chat_members ?? [])) {
+      for (const member of ((message as Partial<Message.NewChatMembersMessage>).new_chat_members ?? [])) {
         if (member.is_bot === false) {
           groupObj.addMember(member.first_name, member.id);
         }
@@ -153,7 +150,7 @@ class App {
       }
     })
     this.bot.on('new_chat_members', async (ctx) => {
-      const { reply, message, chat } = ctx;
+      const { message, chat } = ctx;
       if (!chat || !message || !message.from) {
         console.log('WTF');
         return;
@@ -204,7 +201,7 @@ class App {
       }
     });
     this.addCommand('newmembernotelegram', 'adds a member who has no telegram', async (ctx) => {
-      const { message, reply, chat } = ctx;
+      const { message, chat } = ctx;
       if (!chat || !chat.id || !message || !message.text || !message.entities) {
         return;
       }
@@ -283,7 +280,7 @@ class App {
         Markup
           .inlineKeyboard(callbackHandler.getKeyboard([[{
             text: '💣 Confirm',
-            clicked: async (user) => {
+            clicked: async () => {
               groupObj.state = 'initial';
               for (const member of groupObj.members) {
                 member.readyCheckConfirmed = false;
@@ -304,7 +301,7 @@ class App {
       if (!groupObj) {
         return ctx.reply('Not in group / none initialized group');
       }
-      ctx.replyWithHTML(`<a href="${this.url}/client/index.html#${groupObj.id}">Inforino</a>`); // eslint-disable-line camelcase
+      ctx.replyWithHTML(`<a href="${this.url}/client/index.html#${groupObj.id}">Inforino</a>`);  
     });
     this.addCommand('moneysplit', 'get amount due per persons per entry', async ctx => {
       const { chat } = ctx;
@@ -323,7 +320,7 @@ class App {
     })
 
     this.addCommand('summary', 'get summary.', async (ctx) => {
-      const { chat, reply, replyWithHTML, replyWithPhoto } = ctx;
+      const { chat } = ctx;
       if (!chat || !chat.id) {
         return;
       }
@@ -337,7 +334,7 @@ class App {
       ctx.replyWithHTML('<code>' + table + '</code>');
     });
     this.addCommand('transactions', 'Get Transactions', async (ctx) => {
-      const { chat, reply, replyWithHTML } = ctx;
+      const { chat } = ctx;
       if (!chat || !chat.id) {
         return;
       }
@@ -357,7 +354,7 @@ class App {
       // replyWithHTML('<code>' + table.toString() + '</code>');
     });
     this.addCommand('setpaypal', 'Set Paypal Link', async (ctx) => {
-      const { chat, reply, message } = ctx;
+      const { chat, message } = ctx;
       if (!chat || !chat.id || !message || !message.text || !message.from) {
         return;
       }
@@ -378,7 +375,7 @@ class App {
       }
     })
     this.addCommand('setcurrency', 'Sets exchange rate for foreign currrency to be used. All foreign amounts will be divide by this value.', async (ctx) => {
-      const { message, reply, chat } = ctx;
+      const { message, chat } = ctx;
       if (!chat || !chat.id || !message || !message.text || !message.entities) {
         return;
       }
@@ -397,7 +394,7 @@ class App {
       ctx.reply(`Currency set to ${currency}.`);
     });
     this.addCommand('getcurrency', 'Gets exchange rate', async (ctx) => {
-      const { reply, chat } = ctx;
+      const { chat } = ctx;
       if (!chat || !chat.id) {
         return;
       }
@@ -413,7 +410,7 @@ class App {
     });
 
     this.addCommand('memberinfo', 'get info about you', async (ctx) => {
-      const { chat, reply, replyWithHTML, message } = ctx;
+      const { chat, message } = ctx;
       if (!chat || !chat.id || !message || !message.from) {
         return;
       }
@@ -427,7 +424,7 @@ class App {
       ctx.replyWithHTML(await group.getMemberInfo(message.from.id));
     });
     this.addCommand('remove', 'Remove Entry', async (ctx) => {
-      const { reply, message, chat } = ctx;
+      const { message, chat } = ctx;
       if (!chat || !chat.id || !message || !message.from) {
         return;
       }
@@ -463,7 +460,7 @@ class App {
       );
     });
     this.addCommand('kick', 'Kick User', async (ctx) => {
-      const { reply, chat } = ctx;
+      const { chat } = ctx;
       if (!chat) {
         return;
       }
@@ -503,7 +500,7 @@ class App {
       );
     });
     this.addCommand('editdescription', 'Edit Description of entry', async (ctx) => {
-      const { reply, message, chat } = ctx;
+      const { message, chat } = ctx;
       if (!chat || !chat.id || !message || !message.from) {
         return;
       }
@@ -543,7 +540,7 @@ class App {
       );
     });
     this.addCommand('editamount', 'Edit Amount of entry', async (ctx) => {
-      const { reply, message, chat } = ctx;
+      const { message, chat } = ctx;
       if (!chat || !chat.id || !message || !message.from) {
         return;
       }
@@ -601,7 +598,7 @@ class App {
       next();
     });
     this.addCommand('groups', 'Get overview over groups (works only in private chat)', async (ctx, next) => {
-      const { chat, reply, replyWithHTML } = ctx;
+      const { chat } = ctx;
       if (chat?.type !== 'private') {
         return next();
       }
@@ -643,36 +640,36 @@ class App {
     await groupObj.save();
     let chatId = null;
     let messageId = null;
-    let message: PromiseType<ReturnType<Telegram['sendMessage']>>;
+    let message: PromiseType<ReturnType<Telegram['sendMessage']>> | undefined;
     while (groupObj.members.reduce((prev, member) => prev && member.readyCheckConfirmed, true) === false) {
-      await new Promise<void>(async resolve => {
-        const keyboard = callbackHandler.getKeyboard(
-          groupObj.members.map(member => [({
-            text: `${member.name} ${member.readyCheckConfirmed ? `✅` : `🔳`}`,
-            clicked: async (user) => {
-              member.readyCheckConfirmed = !member.readyCheckConfirmed;
-              await groupObj.save();
-              resolve();
-              return false;
-            }
-          })]));
-        if (message) {
-          const response = await this.bot.telegram.editMessageReplyMarkup(message.chat.id, message.message_id, undefined, { inline_keyboard: keyboard });
-          if (!response) {
-            message = await this.bot.telegram.sendMessage(groupObj.telegramId, `Ready Check. Please confirm you added everything...\n`,
-              Markup
-                .inlineKeyboard(keyboard)
-            );
+      const { promise: clicked, resolve } = Promise.withResolvers<void>();
+      const keyboard = callbackHandler.getKeyboard(
+        groupObj.members.map(member => [({
+          text: `${member.name} ${member.readyCheckConfirmed ? `✅` : `🔳`}`,
+          clicked: async () => {
+            member.readyCheckConfirmed = !member.readyCheckConfirmed;
+            await groupObj.save();
+            resolve();
+            return false;
           }
-        } else {
+        })]));
+      if (message) {
+        const response = await this.bot.telegram.editMessageReplyMarkup(message.chat.id, message.message_id, undefined, { inline_keyboard: keyboard });
+        if (!response) {
           message = await this.bot.telegram.sendMessage(groupObj.telegramId, `Ready Check. Please confirm you added everything...\n`,
             Markup
               .inlineKeyboard(keyboard)
           );
         }
-        chatId = message.chat.id;
-        messageId = message.message_id;
-      })
+      } else {
+        message = await this.bot.telegram.sendMessage(groupObj.telegramId, `Ready Check. Please confirm you added everything...\n`,
+          Markup
+            .inlineKeyboard(keyboard)
+        );
+      }
+      chatId = message.chat.id;
+      messageId = message.message_id;
+      await clicked;
     }
     if (chatId && messageId) {
       await this.bot.telegram.editMessageReplyMarkup(chatId, messageId, undefined, {
@@ -689,49 +686,49 @@ class App {
     await groupObj.save();
     let chatId = null;
     let messageId = null;
-    let message: PromiseType<ReturnType<Telegram['sendMessage']>>;
+    let message: PromiseType<ReturnType<Telegram['sendMessage']>> | undefined;
     function transactionFormatter(transaction: ITransaction) {
       return `${transaction.from} -> ${transaction.to} ${Math.round(transaction.amount * 100) / 100} ${transaction.confirmed ? `✅` : `🔳`}`;
     }
     while (groupObj.transactions?.reduce((prev, trans) => prev && trans.confirmed, true) === false) {
-      await new Promise<void>(async resolve => {
-        const keyboard = callbackHandler.getKeyboard(groupObj.transactions?.map(transaction => [({
-          text: transactionFormatter(transaction),
-          clicked: async () => {
-            transaction.confirmed = !transaction.confirmed;
-            await groupObj.save();
-            resolve();
-            return false
-          }
-        })]) ?? []);
-        const messageText = `Transaction Check. Please confirm Transactions...\n` +
-          groupObj.transactions?.map(transaction => `${transactionFormatter(transaction)} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''} `).join('\n');
-        if (message) {
-          try {
-            const response = await this.bot.telegram.editMessageReplyMarkup(message.chat.id, message.message_id, undefined, { inline_keyboard: keyboard });
-            if (!response) {
-              message = await this.bot.telegram.sendMessage(groupObj.telegramId, messageText,
-                Markup.inlineKeyboard(keyboard)
-              );
-            }
-          } catch (e) {
+      const { promise: clicked, resolve } = Promise.withResolvers<void>();
+      const keyboard = callbackHandler.getKeyboard(groupObj.transactions?.map(transaction => [({
+        text: transactionFormatter(transaction),
+        clicked: async () => {
+          transaction.confirmed = !transaction.confirmed;
+          await groupObj.save();
+          resolve();
+          return false
+        }
+      })]) ?? []);
+      const messageText = `Transaction Check. Please confirm Transactions...\n` +
+        groupObj.transactions?.map(transaction => `${transactionFormatter(transaction)} ${transaction.paypalLink ? `<a href="${transaction.paypalLink}">paypal</a>` : ''} `).join('\n');
+      if (message) {
+        try {
+          const response = await this.bot.telegram.editMessageReplyMarkup(message.chat.id, message.message_id, undefined, { inline_keyboard: keyboard });
+          if (!response) {
             message = await this.bot.telegram.sendMessage(groupObj.telegramId, messageText,
               Markup.inlineKeyboard(keyboard)
             );
           }
-        } else {
+        } catch {
           message = await this.bot.telegram.sendMessage(groupObj.telegramId, messageText,
-            {
-              parse_mode: 'HTML',
-              reply_markup: {
-                inline_keyboard: keyboard,
-              }
-            }
+            Markup.inlineKeyboard(keyboard)
           );
         }
-        chatId = message.chat.id;
-        messageId = message.message_id;
-      });
+      } else {
+        message = await this.bot.telegram.sendMessage(groupObj.telegramId, messageText,
+          {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: keyboard,
+            }
+          }
+        );
+      }
+      chatId = message.chat.id;
+      messageId = message.message_id;
+      await clicked;
     }
     if (chatId && messageId) {
       await this.bot.telegram.editMessageReplyMarkup(chatId, messageId, undefined, {

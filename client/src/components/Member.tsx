@@ -15,7 +15,7 @@ import { MuiPickersUtilsProvider, DatePicker } from '@material-ui/pickers';
 import DateFnsUtils from '@date-io/date-fns';
 import { valueChanged } from './Group';
 
-export function Member({ member, i, groupId, groupData }: { member: IMember; i: number; groupId: string; groupData?: IGroupData; }) {
+export function Member({ member, i, groupId, groupData }: { member: IMember; i: number; groupId: string; groupData: IGroupData; }) {
   const [open, setOpen] = React.useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -48,7 +48,7 @@ export function Member({ member, i, groupId, groupData }: { member: IMember; i: 
               </Box></Modal>
               <Button onClick={handleOpen}>Info</Button>
             </TableCell>
-            <TableCell><Input type="number" value={member.weight} step="any" min="0"
+            <TableCell><Input type="number" value={member.weight} inputProps={{ step: "any", min: 0 }}
               onChange={event => valueChanged(member.id, groupId, { weight: parseFloat(event.target.value.replace(",", ".")) })}
             /></TableCell>
           </TableRow>
@@ -73,7 +73,7 @@ export function Member({ member, i, groupId, groupData }: { member: IMember; i: 
                         margin="normal"
                         label=""
                         value={member.start}
-                        onChange={event => valueChanged(member.id, groupId, { start: event })} />
+                        onChange={event => valueChanged(member.id, groupId, { start: event ?? undefined })} />
                     </MuiPickersUtilsProvider>
                   </TableCell>
                 </TableRow>
@@ -84,7 +84,7 @@ export function Member({ member, i, groupId, groupData }: { member: IMember; i: 
                       margin="normal"
                       label=""
                       value={member.end}
-                      onChange={event => valueChanged(member.id, groupId, { end: event })} />
+                      onChange={event => valueChanged(member.id, groupId, { end: event ?? undefined })} />
                   </MuiPickersUtilsProvider></TableCell>
                 </TableRow></>}</>}
           <TableRow>

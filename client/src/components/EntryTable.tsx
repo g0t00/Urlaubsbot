@@ -1,5 +1,5 @@
 import { IEntryFlat } from './Group'
-import { IGroupData } from '../interfaces'
+import { IGroupData, IMember } from '../interfaces'
 
 import { Grid, Table, TableHeaderRow, TableEditRow, TableEditColumn, } from '@devexpress/dx-react-grid-material-ui';
 import {
@@ -7,8 +7,6 @@ import {
   IntegratedSorting,
   ChangeSet,
   EditingState,
-  TableRow,
-  TableColumn
 } from '@devexpress/dx-react-grid';
 import * as React from "react";
 import { DataTypeProvider, DataTypeProviderProps } from '@devexpress/dx-react-grid';
@@ -17,8 +15,8 @@ import { MuiPickersUtilsProvider, DatePicker } from '@material-ui/pickers';
 import DateFnsUtils from '@date-io/date-fns';
 
 
-import { API_BASE } from '../api';
-import { useState } from 'react';
+import { API_BASE, authHeaders } from '../api';
+import { useContext, useState } from 'react';
 export interface IEntryTableProps {
   entries: IEntryFlat[];
   groupData: IGroupData;
@@ -48,16 +46,15 @@ const DateTypeProvider: React.ComponentType<DataTypeProviderProps> = (props: Dat
     {...props}
   />
 );
-interface IErrors {
-  [key: string]: boolean;
-}
-const EditCell = ({ errors, addedErrors, ...props }: any) => {
+type IErrors = Record<string | number, boolean>;
+const EditCell = ({ errors, addedErrors, ...props }: TableEditColumn.CellProps & { errors: IErrors; addedErrors: IErrors }) => {
   const { children } = props;
+  const rowId = props.tableRow.rowId ?? '';
   return (
     <TableEditColumn.Cell {...props}>
       {React.Children.map(children, child => (
-        child?.props.id === 'commit'
-          ? React.cloneElement(child, { disabled: errors[props.tableRow.rowId] || addedErrors[props.tableRow.rowId] })
+        React.isValidElement<{ id?: string; disabled?: boolean }>(child) && child.props.id === 'commit'
+          ? React.cloneElement(child, { disabled: errors[rowId] || addedErrors[rowId] })
           : child
       ))}
 
@@ -85,12 +82,81 @@ const NumberTypeProvider: React.ComponentType<DataTypeProviderProps> = props => 
 );
 const getEntryId = (entry: IEntryFlat) => entry.uuid;
 
+const MembersContext = React.createContext<IMember[]>([]);
+
+function PayerEditor({ value, onValueChange }: DataTypeProvider.ValueEditorProps) {
+  const members = useContext(MembersContext);
+  return (
+    <div>
+      <Select
+        input={<Input />}
+        value={value}
+        onChange={event => onValueChange(event.target.value)}
+        style={{ width: '100%' }}
+      >
+        {members.map(member => (
+          <MenuItem value={member.name} key={member.id}>
+            {member.name}
+          </MenuItem>
+        ))}
+      </Select>
+    </div>
+  );
+}
+function PartialGroupFormatter({ value }: DataTypeProvider.ValueFormatterProps) {
+  const members = useContext(MembersContext);
+  const ids = value as number[];
+  if (ids.length === 0) {
+    return <span>All</span>;
+  }
+  const nameOf = (id: number) => members.find(member => member.id === id)?.name ?? '';
+  return <span>{ids.slice().sort((a, b) => nameOf(a).localeCompare(nameOf(b))).map(nameOf).join(', ')}</span>;
+}
+function PartialGroupEditor({ value, onValueChange }: DataTypeProvider.ValueEditorProps) {
+  const members = useContext(MembersContext);
+  return <FormGroup>
+    <FormControlLabel
+      control={
+        <Checkbox
+          checked={!value || value.length === 0}
+          onChange={event => event.target.value && onValueChange([])}
+          value="checkedB"
+          color="primary"
+        />
+      }
+      label="All"
+    />
+    <FormControl>
+      <Select
+        multiple
+        value={value || []}
+        onChange={event => onValueChange(event.target.value)}
+        input={<Input id="select-multiple-chip" />}
+        renderValue={selected => (
+          <div>
+            {(selected as number[]).map(id => (
+              <Chip key={id} label={members.find(member => member.id === id)?.name} />
+            ))}
+          </div>
+        )}
+        style={{ width: '100%' }}
+      >
+        {members.map(member => (
+          <MenuItem key={member.id} value={member.id}>
+            {member.name}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  </FormGroup>;
+}
+
 export function EntryTable(props: IEntryTableProps) {
   const [state, setState] = useState<{ deleteDialogOpen: boolean, deleteDialogEntry?: IEntryFlat }>({
     deleteDialogOpen: false
   });
-  const [errors, setErrors] = useState({});
-  const [addedErrors, setAddedErrors] = useState({});
+  const [errors, setErrors] = useState<IErrors>({});
+  const [addedErrors, setAddedErrors] = useState<IErrors>({});
 
   async function commitChanges({ added, changed, deleted }: ChangeSet) {
     if (deleted && deleted[0]) {
@@ -106,6 +172,9 @@ export function EntryTable(props: IEntryTableProps) {
         const amount = parseFloat(add.amount);
         if (add.name !== '' && Number.isFinite(amount)) {
           const member = props.groupData.members.find(member => member.name === add.name);
+          if (!member) {
+            continue;
+          }
 
           const body = {
             memberId: member.id,
@@ -119,7 +188,7 @@ export function EntryTable(props: IEntryTableProps) {
             method: 'POST',
             headers: {
               "Content-Type": "application/json; charset=utf-8",
-              "Auth": localStorage.getItem('user')
+              ...authHeaders(),
               // "Content-Type": "application/x-www-form-urlencoded",
             },
             body: JSON.stringify(body)
@@ -136,7 +205,7 @@ export function EntryTable(props: IEntryTableProps) {
           method: 'PUT',
           headers: {
             "Content-Type": "application/json; charset=utf-8",
-            "Auth": localStorage.getItem('user')
+            ...authHeaders(),
             // "Content-Type": "application/x-www-form-urlencoded",
           },
           body: JSON.stringify(changes)
@@ -144,160 +213,84 @@ export function EntryTable(props: IEntryTableProps) {
       }
     }
   }
-  //React.ComponentType<DataTypeProvider.ValueEditorProps>
-  function payerEditor({ value, onValueChange }: DataTypeProvider.ValueEditorProps) {
-    return (
-      <div>
-
-        <Select
-          input={<Input />}
-          value={value}
-          onChange={event => onValueChange(event.target.value)}
-          style={{ width: '100%' }}
-        >
-          {props.groupData.members.map(member => (
-            <MenuItem value={member.name} key={member.id}>
-              {member.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </div>
-    )
-  };
-  function PayerTypeProvider(props: DataTypeProviderProps) {
-    return (
-      <DataTypeProvider
-        editorComponent={payerEditor}
-        {...props}
-      />
-    )
-  };
-  function partialGroupFormatter({ value }: { value: number[] }) {
-    if (value.length === 0) {
-      return <span>All</span>;
-    }
-    const valueSort = value.slice().sort((a, b) => (props.groupData.members.find(member => member.id === a)?.name ?? '').localeCompare(props.groupData.members.find(member => member.id === b)?.name));
-    return <span>{valueSort.map(partialGroupMemberId => props.groupData.members.find(member => member.id === partialGroupMemberId).name).join(', ')}</span>;
-  }
-  function partialGroupEditor({ value, onValueChange }: DataTypeProvider.ValueEditorProps) {
-    return <FormGroup>
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={!value || value.length === 0}
-            onChange={event => event.target.value && onValueChange([])}
-            value="checkedB"
-            color="primary"
-          />
-        }
-        label="All"
-      />
-      <FormControl>
-        <Select
-          multiple
-          value={value || []}
-          onChange={event => onValueChange(event.target.value)}
-          input={<Input id="select-multiple-chip" />}
-          renderValue={(selected: number[]) => (
-            <div>
-              {selected.map((value: number) => {
-                const name = props.groupData.members.find(member => member.id === value).name;
-                return <Chip key={value} label={name} />
-              })}
-            </div>
-          )}
-          style={{ width: '100%' }}
-
-        >
-          {props.groupData.members.map(member => (
-            <MenuItem key={member.id} value={member.id}>
-              {member.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </FormGroup>
-  };
-  function PartialGroupProvider(props: DataTypeProviderProps) {
-    return <DataTypeProvider
-      formatterComponent={partialGroupFormatter}
-      editorComponent={partialGroupEditor}
-      {...props}
-    />
-  };
   async function deleteEntry() {
-    await fetch(API_BASE + `/${props.groupData.id}/${state.deleteDialogEntry.uuid}`, { method: 'DELETE', headers: { "Auth": localStorage.getItem('user') } });
+    if (!state.deleteDialogEntry) {
+      return;
+    }
+    await fetch(API_BASE + `/${props.groupData.id}/${state.deleteDialogEntry.uuid}`, { method: 'DELETE', headers: authHeaders() });
     console.log(state.deleteDialogEntry);
     setState({ ...state, deleteDialogOpen: false });
   }
   return <>
-    <Paper>
-      <Grid
-        rows={props.entries}
-        columns={
-          [
-            { name: 'name', title: 'Payer' },
-            { name: 'description', title: 'Description' },
-            { name: 'partialGroupMembers', title: 'For' },
-            { name: 'amount', title: 'Amount' },
-            { name: 'time', title: 'Entry/Start date' },
-            { name: 'endTime', title: 'End Date' },
-          ]}
-        getRowId={getEntryId}
-      >
-        <SortingState defaultSorting={[{ columnName: 'time', direction: 'desc' }]} />
-        <IntegratedSorting />
-        <EditingState
-          onRowChangesChange={rowChanges => {
-            const errors = Object.entries(rowChanges).reduce(
-              (acc, [rowId, row]) => {
-                return {
-                  ...acc,
-                  [rowId]: row.name === '' || row.amount === '' || row.description === '',
-                }
-              }, {});
-            console.log('c', errors);
-            setErrors(errors)
-          }}
+    <MembersContext.Provider value={props.groupData.members}>
+      <Paper>
+        <Grid
+          rows={props.entries}
+          columns={
+            [
+              { name: 'name', title: 'Payer' },
+              { name: 'description', title: 'Description' },
+              { name: 'partialGroupMembers', title: 'For' },
+              { name: 'amount', title: 'Amount' },
+              { name: 'time', title: 'Entry/Start date' },
+              { name: 'endTime', title: 'End Date' },
+            ]}
+          getRowId={getEntryId}
+        >
+          <SortingState defaultSorting={[{ columnName: 'time', direction: 'desc' }]} />
+          <IntegratedSorting />
+          <EditingState
+            onRowChangesChange={rowChanges => {
+              const errors = Object.entries(rowChanges).reduce(
+                (acc, [rowId, row]) => {
+                  return {
+                    ...acc,
+                    [rowId]: row.name === '' || row.amount === '' || row.description === '',
+                  }
+                }, {});
+              console.log('c', errors);
+              setErrors(errors)
+            }}
 
-          onAddedRowsChange={addedRows => {
-            const errors = Object.entries(addedRows).reduce(
-              (acc, [rowId, row]) => {
-                return {
-                  ...acc,
-                  [rowId]: typeof row.name !== 'string' || row.name === '' || typeof row.amount !== 'string' ||
-                    row.amount === '' || typeof row.description !== 'string' || row.description === '' || typeof row.name !== 'string' || row.name === '',
-                }
-              }, {});
-            console.log('a', errors);
-            setAddedErrors(errors)
-          }}
-          columnExtensions={[
-            // { columnName: 'time', editingEnabled: false },
-          ]}
-          onCommitChanges={commitChanges}
-        />
-        <Table />
-        <DateTypeProvider for={['time']} />
-        <DateTypeProvider for={['endTime']} />
-        <NumberTypeProvider for={['amount']} />
-        <PartialGroupProvider
-          for={['partialGroupMembers']}
-        />
-        <PayerTypeProvider
-          for={['name']}
-        />
+            onAddedRowsChange={addedRows => {
+              const errors = Object.entries(addedRows).reduce(
+                (acc, [rowId, row]) => {
+                  return {
+                    ...acc,
+                    [rowId]: typeof row.name !== 'string' || row.name === '' || typeof row.amount !== 'string' ||
+                      row.amount === '' || typeof row.description !== 'string' || row.description === '' || typeof row.name !== 'string' || row.name === '',
+                  }
+                }, {});
+              console.log('a', errors);
+              setAddedErrors(errors)
+            }}
+            columnExtensions={[
+              // { columnName: 'time', editingEnabled: false },
+            ]}
+            onCommitChanges={commitChanges}
+          />
+          <Table />
+          <DateTypeProvider for={['time']} />
+          <DateTypeProvider for={['endTime']} />
+          <NumberTypeProvider for={['amount']} />
+          <DataTypeProvider
+            for={['partialGroupMembers']}
+            formatterComponent={PartialGroupFormatter}
+            editorComponent={PartialGroupEditor}
+          />
+          <DataTypeProvider for={['name']} editorComponent={PayerEditor} />
 
-        <TableHeaderRow showSortingControls />
-        <TableEditRow />
-        <TableEditColumn
-          showAddCommand={props.groupData !== undefined && (props.groupData.state === 'initial' || props.groupData.state === 'readyCheck')}
-          showEditCommand={props.groupData !== undefined && (props.groupData.state === 'initial' || props.groupData.state === 'readyCheck')}
-          showDeleteCommand={props.groupData !== undefined && (props.groupData.state === 'initial' || props.groupData.state === 'readyCheck')}
-          cellComponent={props => <EditCell {...props} errors={errors} addedErrors={addedErrors}/>}
-        />
-      </Grid>
-    </Paper>
+          <TableHeaderRow showSortingControls />
+          <TableEditRow />
+          <TableEditColumn
+            showAddCommand={props.groupData !== undefined && (props.groupData.state === 'initial' || props.groupData.state === 'readyCheck')}
+            showEditCommand={props.groupData !== undefined && (props.groupData.state === 'initial' || props.groupData.state === 'readyCheck')}
+            showDeleteCommand={props.groupData !== undefined && (props.groupData.state === 'initial' || props.groupData.state === 'readyCheck')}
+            cellComponent={props => <EditCell {...props} errors={errors} addedErrors={addedErrors}/>}
+          />
+        </Grid>
+      </Paper>
+    </MembersContext.Provider>
     <Dialog
       open={state.deleteDialogOpen}
       onClose={() => setState({ deleteDialogOpen: false })}
@@ -311,8 +304,8 @@ export function EntryTable(props: IEntryTableProps) {
             <><>{state.deleteDialogEntry.name}<br /></>
               <>{state.deleteDialogEntry.description}<br /></>
               <>{state.deleteDialogEntry.amount}<br /></>
-              <>{state.deleteDialogEntry.partialGroupMembers.join(', ')}<br /></>
-              <>{state.deleteDialogEntry.time.toLocaleString()}<br /></></>
+              <>{state.deleteDialogEntry.partialGroupMembers?.join(', ')}<br /></>
+              <>{state.deleteDialogEntry.time?.toLocaleString()}<br /></></>
           }
         </DialogContentText>
       </DialogContent>
