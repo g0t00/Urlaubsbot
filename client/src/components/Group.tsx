@@ -1,4 +1,4 @@
-import { IGroupData, IEntry, IGroupMemberChange } from '../interfaces'
+import { IGroupData, IEntry } from '../interfaces'
 // import deepcopy from "ts-deepcopy";
 
 import * as React from "react";
@@ -28,7 +28,7 @@ export enum sortRows {
   amount,
   time
 };
-function TabPanel(props: any) {
+function TabPanel(props: { children: React.ReactNode; value: number; index: number }) {
   const { children, value, index, ...other } = props;
 
   return (
@@ -73,15 +73,10 @@ export async function valueChanged(memberId: number, groupId: string, change: Pa
 export default function Group() {
   const [groupData, setGroupData] = useState<IGroupData | undefined>();
   const [tab, setTab] = useState(0);
-  const [groupId, setGroupId] = useState<string>();
-  useEffect(() => {
-    setGroupId(window.location.hash.replace(/^#/, ''));
-    // groupId = window.location.hash.replace(/^#/, '');
-    // loadData();
-  }, []);
+  const [groupId] = useState(() => window.location.hash.replace(/^#/, ''));
   useEffect(() => {
     if (typeof groupId !== 'undefined') {
-      let source = new EventSource(API_BASE + '/' + groupId + '/stream?auth=' + localStorage.getItem('user'));
+      const source = new EventSource(API_BASE + '/' + groupId + '/stream?auth=' + localStorage.getItem('user'));
       source.onmessage = ({ data }) => {
         const json = JSON.parse(data);
         for (const member of json.members) {
@@ -105,7 +100,7 @@ export default function Group() {
     }
 
   }, [groupId])
-  async function changeDayMode(event: any) {
+  async function changeDayMode(event: React.ChangeEvent<HTMLInputElement>) {
     if (groupData === undefined) {
       return;
     }
@@ -150,7 +145,7 @@ export default function Group() {
         />
       </FormGroup>
       <AppBar position="static">
-        <Tabs value={tab} onChange={(_, newValue: any) => setTab(newValue)} aria-label="simple tabs example">
+        <Tabs value={tab} onChange={(_, newValue: number) => setTab(newValue)} aria-label="simple tabs example">
           <Tab label="Summary" />
           <Tab label="Plots" />
           <Tab label="MoneySplit" />

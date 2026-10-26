@@ -17,15 +17,16 @@ export class CallbackHandler {
   callbackEmitter = new EventEmitter();
   responseEmitter = new EventEmitter();
   async handle(ctx: MatchedContext<Context<Update>, "callback_query">) {
-    const match = (ctx.callbackQuery as any).data.match(/([^%]+)%([^%]+)%([^%]+)/);
+    const match = 'data' in ctx.callbackQuery ? ctx.callbackQuery.data.match(/([^%]+)%([^%]+)%([^%]+)/) : null;
     if (match) {
       this.callbackEmitter.emit(match[1], match[2], match[3], ctx);
     }
   }
   async handleMessage(ctx: Context<Update>) {
     console.log(ctx);
-    if (ctx.message && (ctx.message as any).reply_to_message) {
-      this.responseEmitter.emit('response', (ctx.message as any).reply_to_message.chat.id, (ctx.message as any).reply_to_message.message_id, (ctx.message as any).text, ctx.message.message_id);
+    const message = ctx.message;
+    if (message && 'reply_to_message' in message && message.reply_to_message && 'text' in message) {
+      this.responseEmitter.emit('response', message.reply_to_message.chat.id, message.reply_to_message.message_id, message.text, message.message_id);
     }
   }
   getKeyboard(button2d: IButton[][]) {
@@ -41,11 +42,7 @@ export class CallbackHandler {
       const clickHandler = button2d[index][index2].clicked;
       if (ctx.callbackQuery && ctx.callbackQuery.message && await clickHandler(ctx.callbackQuery.from) === true) {
         console.log('Deleted callback');
-        try {
-          ctx.telegram.deleteMessage(ctx.callbackQuery.message.chat.id, ctx.callbackQuery.message.message_id);
-        } catch(err) {
-
-        }
+        ctx.telegram.deleteMessage(ctx.callbackQuery.message.chat.id, ctx.callbackQuery.message.message_id).catch(err => console.log(err));
       }
     });
     return keyboard;
@@ -54,11 +51,7 @@ export class CallbackHandler {
     return new Promise(resolve => {
       this.responseEmitter.on('response', async (_chatId: number, _message_id: number, text: string, responseMessageId: number) => {
         if (chatId === _chatId && message_id === _message_id) {
-          try {
-            app.bot.telegram.callApi('deleteMessage', {chat_id: chatId, message_id: responseMessageId}).catch(err => console.log(err));
-          } catch(err) {
-            console.error('could not delete')
-          }
+          app.bot.telegram.callApi('deleteMessage', {chat_id: chatId, message_id: responseMessageId}).catch(err => console.log(err));
           resolve(text);
         }
       })

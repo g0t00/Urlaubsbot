@@ -11,7 +11,7 @@ import { PaypalMappingModel } from './paypalMapping';
 import { Transaction } from './transaction';
 import { roundToCent } from './util';
 import { web } from './web';
-const AsciiTable = require('ascii-table');
+import AsciiTable from 'ascii-table';
 export interface IMemberWithSum extends Member {
   sum: number;
 }
@@ -99,7 +99,7 @@ export class Group {
           for (const entry of memberToPay.entries) {
             let partialAmount;
             if (!entry.partialGroupMembers || entry.partialGroupMembers.length === 0) {
-              let totalWeight = this.members.map(m => m.weight).reduce((p, c) => p + c, 0)
+              const totalWeight = this.members.map(m => m.weight).reduce((p, c) => p + c, 0)
               partialAmount = (entry.amount * member.weight) / totalWeight;
             } else if (entry.partialGroupMembers.indexOf(member.id) > -1) {
               partialAmount = entry.amount / entry.partialGroupMembers.length;
@@ -240,19 +240,14 @@ export class Group {
   }
 
   async deleteEntryByUuid(this: DocumentType<Group>, uuid: string) {
-    let found = false;
     for (const member of this.members) {
-      if (found === false) {
-
-        const i = member.entries.findIndex(entry => entry.uuid === uuid);
-        if (i > -1) {
-          found = true;
-          const removedEntry = member.entries.splice(i, 1)[0];
-          await this.save();
-          await app.bot.telegram.sendMessage(this.telegramId, `Removed Entry: ${removedEntry.description}: ${removedEntry.amount}\n` +
-            `for ${member.name} (${member.id})`);
-          return true;
-        }
+      const i = member.entries.findIndex(entry => entry.uuid === uuid);
+      if (i > -1) {
+        const removedEntry = member.entries.splice(i, 1)[0];
+        await this.save();
+        await app.bot.telegram.sendMessage(this.telegramId, `Removed Entry: ${removedEntry.description}: ${removedEntry.amount}\n` +
+          `for ${member.name} (${member.id})`);
+        return true;
       }
     }
 
@@ -380,11 +375,6 @@ export class Group {
     if (!member) {
       return 'No Info found!';
     }
-    const memberSum = member.entries.reduce((acc, entry) => {
-      return acc + entry.amount;
-    }, 0);
-    const sum = this.getSum();
-    const avg = sum / (this.members as Member[]).length;
 
     let str = `${member.name} (${member.id})\n` +
       `has payed: ${roundToCent(member.hasPayed)}, has to pay: ${roundToCent(member.toPay)}, still open: ${roundToCent(member.toPay - member.hasPayed)}.\n`;

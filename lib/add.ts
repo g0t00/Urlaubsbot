@@ -28,13 +28,11 @@ addMiddleware.command('addother', ctx => {
 addMiddleware.command('addotherforeign', ctx => {
   addOther(ctx, true);
 });
-const selective = false;
 async function addOther(ctx: MatchedContext<Context<Update>, "text">, useForeign: boolean) {
-  const { message, reply, chat, telegram } = ctx;
+  const { message, chat } = ctx;
   if (!chat || !message || !message.text || !message.entities || !message.from) {
     return;
   }
-  const memberId = message.from.id;
   const groupObj = await GroupModel.findOne({ telegramId: chat.id });
   if (!groupObj) {
     ctx.reply('Not in group / none initialized group');
@@ -51,7 +49,7 @@ async function addOther(ctx: MatchedContext<Context<Update>, "text">, useForeign
     const replyObj = await ctx.reply(`No Amount found! Reply With Amount please.@${message.from.username}`, {
       reply_markup: { force_reply: true, selective: true }
     });
-    let amount = await callbackHandler.getReply(chat.id, replyObj.message_id);
+    const amount = await callbackHandler.getReply(chat.id, replyObj.message_id);
     matches = amount.match(/\d+[.,]?\d*/);
     app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
   }
@@ -96,7 +94,7 @@ async function addOther(ctx: MatchedContext<Context<Update>, "text">, useForeign
   );
 };
 async function add(ctx: MatchedContext<Context<Update>, "text">, useForeign: boolean) {
-  const { chat, message, telegram } = ctx;
+  const { chat, message } = ctx;
   if (!chat || !message || !message.from || !message.entities) {
     return ctx.reply('nope');
   }
@@ -124,7 +122,6 @@ async function add(ctx: MatchedContext<Context<Update>, "text">, useForeign: boo
   const memberId = message.from.id;
   let amount: number;
   let description: string;
-  let matches: RegExpMatchArray;
   let messageText;
   if (message.text) {
     messageText = message.text.substr(message.entities[0].length + 1);
@@ -139,7 +136,7 @@ async function add(ctx: MatchedContext<Context<Update>, "text">, useForeign: boo
     console.log('before try message');
     try {
       await app.bot.telegram.deleteMessage(replyObj.chat.id, replyObj.message_id);
-    } catch (err) {
+    } catch {
       console.log('caught delete message');
       // do not care
     }
@@ -169,7 +166,7 @@ async function add(ctx: MatchedContext<Context<Update>, "text">, useForeign: boo
       const replyObj = await ctx.reply(`No Amount found! Reply With Amount please.@${message.from.username}`, {
         reply_markup: { force_reply: true, selective: true }
       });
-      let amountText = await callbackHandler.getReply(chat.id, replyObj.message_id);
+      const amountText = await callbackHandler.getReply(chat.id, replyObj.message_id);
       matches = amountText.match(/\d+[.,]?\d*/);
 
     }
@@ -218,7 +215,6 @@ async function addPartial(ctx: MatchedContext<Context<Update>, "text">, useForei
   const memberId = message.from.id;
   let amount: number;
   let description: string;
-  let matches: RegExpMatchArray;
   let messageText;
   if (message.text) {
     messageText = message.text.substr(message.entities[0].length + 1);
@@ -257,7 +253,7 @@ async function addPartial(ctx: MatchedContext<Context<Update>, "text">, useForei
       const replyObj = await ctx.reply(`No Amount found! Reply With Amount please. @${message.from.username}`, {
         reply_markup: { force_reply: true, selective: true }
       });
-      let amountText = await callbackHandler.getReply(chat.id, replyObj.message_id);
+      const amountText = await callbackHandler.getReply(chat.id, replyObj.message_id);
       matches = amountText.match(/\d+[.,]?\d*/);
 
     }
@@ -280,34 +276,34 @@ async function addPartial(ctx: MatchedContext<Context<Update>, "text">, useForei
   const partialGroupMembers: Member[] = [];
   let done = false;
   while (!done && partialGroupMembers.length < group.members.length) {
-    await new Promise<void>(async resolve => {
-      // console.log(partialGroupMembers, 'a');
-      const buttons = group.members.filter(member => {
-        return !partialGroupMembers.find(partialGroupMember => partialGroupMember.id === member.id);
-      }).map(member => {
-        return [{
-          text: member.name,
-          clicked: async () => {
-            partialGroupMembers.push(member);
-            resolve();
-            return true;
-          }
-        }];
-      });
-      buttons.push([{
-        text: 'Done',
+    const { promise: clicked, resolve } = Promise.withResolvers<void>();
+    // console.log(partialGroupMembers, 'a');
+    const buttons = group.members.filter(member => {
+      return !partialGroupMembers.find(partialGroupMember => partialGroupMember.id === member.id);
+    }).map(member => {
+      return [{
+        text: member.name,
         clicked: async () => {
-          done = true;
+          partialGroupMembers.push(member);
           resolve();
           return true;
         }
-      }]);
-      const keyboard = callbackHandler.getKeyboard(buttons);
-      const memberList = partialGroupMembers.map(member => member.name).join(', ');
-      await telegram.sendMessage(chat.id, `Current Group Members: ${memberList}. Please add group members:`,
-        Markup.inlineKeyboard(keyboard)
-      );
+      }];
     });
+    buttons.push([{
+      text: 'Done',
+      clicked: async () => {
+        done = true;
+        resolve();
+        return true;
+      }
+    }]);
+    const keyboard = callbackHandler.getKeyboard(buttons);
+    const memberList = partialGroupMembers.map(member => member.name).join(', ');
+    await telegram.sendMessage(chat.id, `Current Group Members: ${memberList}. Please add group members:`,
+      Markup.inlineKeyboard(keyboard)
+    );
+    await clicked;
   }
 
   if (!group.addEntry(memberId, description, amount, new Date(), undefined, partialGroupMembers.map(member => member.id))) {
