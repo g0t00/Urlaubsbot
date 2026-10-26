@@ -2,11 +2,9 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "es2022",
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strict": false,
+    "strict": true,
+    "strictPropertyInitialization": false,
     "inlineSourceMap": true,
-    "alwaysStrict": true,
     "outDir": "./dist",
     "rootDir": "./lib",
     "experimentalDecorators": true,
